@@ -1,0 +1,23 @@
+services:
+  backend:
+    build:
+      context: sdoc-backend
+      dockerfile: Dockerfile
+    container_name: sdoc-backend
+    restart: unless-stopped
+    mem_limit: 1024m
+    
+    volumes:
+      - ./certs:/app/certs:ro
+      - ./logs:/app/logs
+    
+    ports:
+      - "8002:8002"
+    
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+
