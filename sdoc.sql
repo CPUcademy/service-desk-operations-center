@@ -4,6 +4,7 @@ CREATE TABLE "User" (
   "email" VARCHAR(255) NOT NULL UNIQUE,
   "passwordHash" VARCHAR(255) NULL,
   "oauthProvider" VARCHAR(32) NULL,
+  "isAdmin" BOOLEAN NOT NULL DEFAULT FALSE,
   PRIMARY KEY ("id")
 );
 
@@ -20,13 +21,17 @@ CREATE TABLE "Machine" (
 CREATE TABLE "Ticket" (
   "id" BIGSERIAL NOT NULL,
   "adminId" BIGINT DEFAULT NULL,
+  "userId" BIGINT DEFAULT NOT NULL,
   "machineId" BIGINT NOT NULL,
   "description" VARCHAR(255) NOT NULL,
   "priority" INTEGER NOT NULL,
-  "isFixed" BOOLEAN,
+  "isFixed" BOOLEAN NOT NULL DEFAULT FALSE,
   PRIMARY KEY ("id"),
   CONSTRAINT "FK_Ticket_adminId"
     FOREIGN KEY ("adminId")
+      REFERENCES "User"("id"),
+  CONSTRAINT "FK_Ticket_userId"
+    FOREIGN KEY ("userId")
       REFERENCES "User"("id"),
   CONSTRAINT "FK_Ticket_machineId"
     FOREIGN KEY ("machineId")
@@ -46,3 +51,4 @@ CREATE TABLE "RefreshTokens" (
     FOREIGN KEY ("userId")
       REFERENCES "User"("id")
 );
+
