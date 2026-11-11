@@ -21,7 +21,7 @@ CREATE TABLE "Machine" (
 CREATE TABLE "Ticket" (
   "id" BIGSERIAL NOT NULL,
   "adminId" BIGINT DEFAULT NULL,
-  "userId" BIGINT DEFAULT NOT NULL,
+  "userId" BIGINT NOT NULL,
   "machineId" BIGINT NOT NULL,
   "description" VARCHAR(255) NOT NULL,
   "priority" INTEGER NOT NULL,
@@ -51,4 +51,3 @@ CREATE TABLE "RefreshTokens" (
     FOREIGN KEY ("userId")
       REFERENCES "User"("id")
 );
-
