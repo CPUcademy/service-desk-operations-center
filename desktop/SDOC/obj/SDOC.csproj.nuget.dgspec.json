@@ -1,23 +1,23 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\MAREK 1\\source\\repos\\service-desk-operations-center\\desktop\\sdoc\\sdoc.csproj": {}
+    "C:\\main\\service-desk-operations-center\\desktop\\sdoc\\sdoc.csproj": {}
   },
   "projects": {
-    "C:\\Users\\MAREK 1\\source\\repos\\service-desk-operations-center\\desktop\\sdoc\\sdoc.csproj": {
+    "C:\\main\\service-desk-operations-center\\desktop\\sdoc\\sdoc.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\MAREK 1\\source\\repos\\service-desk-operations-center\\desktop\\sdoc\\sdoc.csproj",
+        "projectUniqueName": "C:\\main\\service-desk-operations-center\\desktop\\sdoc\\sdoc.csproj",
         "projectName": "sdoc",
-        "projectPath": "C:\\Users\\MAREK 1\\source\\repos\\service-desk-operations-center\\desktop\\sdoc\\sdoc.csproj",
-        "packagesPath": "C:\\Users\\MAREK 1\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\MAREK 1\\source\\repos\\service-desk-operations-center\\desktop\\sdoc\\obj\\",
+        "projectPath": "C:\\main\\service-desk-operations-center\\desktop\\sdoc\\sdoc.csproj",
+        "packagesPath": "C:\\Users\\tymot\\.nuget\\packages\\",
+        "outputPath": "C:\\main\\service-desk-operations-center\\desktop\\sdoc\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
-          "C:\\Users\\MAREK 1\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Users\\tymot\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
