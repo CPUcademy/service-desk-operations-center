@@ -41,13 +41,13 @@ CREATE TABLE "Ticket" (
 CREATE TABLE "RefreshTokens" (
   "id" BIGSERIAL NOT NULL,
   "userId" BIGINT NOT NULL,
-  "tokenId" VARCHAR(255) NOT NULL,
+  "tokenId" VARCHAR(255) NOT NULL UNIQUE,
   "tokenHash" VARCHAR(255) NOT NULL,
-  "expiresAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  "expiresAt" TIMESTAMPTZ NOT NULL,
   "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   "revokedAt" TIMESTAMPTZ NULL,
   PRIMARY KEY ("id"),
   CONSTRAINT "FK_RefreshTokens_userId"
     FOREIGN KEY ("userId")
-      REFERENCES "User"("id")
+    REFERENCES "User"("id")
 );
