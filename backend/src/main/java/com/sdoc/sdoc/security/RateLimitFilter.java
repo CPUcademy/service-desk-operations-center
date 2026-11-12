@@ -26,7 +26,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
     @SuppressWarnings("NullableProblems")
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
-        boolean sensitive = request.getRequestURI().startsWith("/api/v1/auth/") || "DELETE".equalsIgnoreCase(request.getMethod());
+        boolean sensitive = request.getRequestURI().startsWith(JwtFilter.PUBLIC_PREFIX) || "DELETE".equalsIgnoreCase(request.getMethod());
         String key = (sensitive ? "sensitive:" : "default:") + request.getRemoteAddr();
         if (!rateLimitService.tryAcquire(key, sensitive ? SENSITIVE_LIMIT_PER_MINUTE : DEFAULT_LIMIT_PER_MINUTE)) {
             response.setStatus(429);

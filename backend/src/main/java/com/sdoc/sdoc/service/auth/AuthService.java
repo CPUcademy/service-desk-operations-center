@@ -39,8 +39,7 @@ import java.util.UUID;
 public class AuthService {
     private static final String BEARER_PREFIX = "Bearer ";
     private static final String REFRESH_COOKIE_PATH = "/api/v1/auth";
-    private static final long REFRESH_TOKEN_DAYS_WEB = 30;
-    private static final long REFRESH_TOKEN_DAYS_NATIVE = 180;
+    private static final long REFRESH_TOKEN_DAYS = 30;
     private static final int MAX_PASSWORD_LENGTH = 72;
 
     private final UserRepository userRepository;
@@ -61,18 +60,14 @@ public class AuthService {
     @Value("${auth.cookie.secure}")
     private boolean secureCookies;
 
-    @Value("${auth.cookie.same-site}")
-    private String sameSite;
-
     // Compared against when the email is unknown, so response time doesn't reveal which emails exist.
     private String dummyHash;
-
     @PostConstruct
     void init() {
         dummyHash = passwordEncoder.encode(UUID.randomUUID().toString());
     }
 
-    public AuthResponseDto register(RegisterRequestDto dto, boolean nativeClient) {
+    public AuthResponseDto register(RegisterRequestDto dto) {
         String email = normalizeEmail(dto.getEmail());
         String fullName = dto.getFullName() == null ? null : dto.getFullName().trim();
         requireValid(inputValidationService.validateEmail(email));
@@ -95,10 +90,10 @@ public class AuthService {
         } catch (DataIntegrityViolationException ex) {
             throw emailTaken();
         }
-        return generateTokens(user, nativeClient);
+        return generateTokens(user);
     }
 
-    public AuthResponseDto login(LoginRequestDto dto, String clientIp, boolean nativeClient) {
+    public AuthResponseDto login(LoginRequestDto dto, String clientIp) {
         String email = normalizeEmail(dto.getEmail());
         String password = dto.getPassword();
         if (email == null || email.isEmpty() || password == null || password.length() > MAX_PASSWORD_LENGTH)
@@ -117,25 +112,36 @@ public class AuthService {
         }
 
         rateLimitService.resetFailedLogin(loginKey);
-        return generateTokens(user, nativeClient);
+        return generateTokens(user);
     }
 
     @Transactional(noRollbackFor = ResponseStatusException.class)
-    public AuthResponseDto refresh(String refreshToken, boolean nativeClient) {
+    public AuthResponseDto refresh(String refreshToken) {
         User user = jwtService.validateRefreshToken(refreshToken);
-        return generateTokens(user, nativeClient);
+        return generateTokens(user);
     }
 
-    public void logout(Long userId, String accessToken) {
+    public void logout(String accessToken, String refreshToken) {
+        Long userId = null;
+        if (accessToken != null && !accessToken.isBlank()) {
+            try {
+                userId = jwtService.validateAccessToken(accessToken).userId();
+                tokenRevocationService.revokeAccessToken(accessToken);
+            } catch (IllegalArgumentException ignored) {}
+        }
+        if (userId == null && refreshToken != null && !refreshToken.isBlank()) {
+            User owner = jwtService.findRefreshTokenOwner(refreshToken);
+            if (owner != null) userId = owner.getId();
+        }
+        if (userId == null) return;
+
         List<RefreshToken> activeTokens = refreshTokenRepository.findAllByUserAndRevokedAtIsNull(userRepository.getReferenceById(userId));
         Instant now = Instant.now();
         activeTokens.forEach(t -> t.setRevokedAt(now));
         refreshTokenRepository.saveAll(activeTokens);
-        if (accessToken != null)
-            tokenRevocationService.revokeAccessToken(accessToken);
     }
 
-    public AuthResponseDto loginWithOAuth(String accessToken, OAuthProvider provider, boolean nativeClient) {
+    private AuthResponseDto loginWithOAuth(String accessToken, OAuthProvider provider) {
         UserDataDto oauthUser = provider.fetchUserInfo(accessToken);
         String providerName = provider.getProviderName();
 
@@ -147,15 +153,12 @@ public class AuthService {
             return existing;
         }).orElseGet(() -> createOAuthUser(oauthUser, providerName));
 
-        return generateTokens(user, nativeClient);
+        return generateTokens(user);
     }
 
-    public AuthResponseDto loginWithAuthCode(String providerName, String tokenOrCode, String redirectUri, boolean nativeClient) {
-        // Strategy Design Pattern
+    public AuthResponseDto loginWithAuthCode(String providerName, String code, String redirectUri) {
         OAuthProvider provider = oauthProviderRegistry.getProvider(providerName);
-        // Native app provides access token directly, web client provides auth code that needs to be exchanged
-        String accessToken = (tokenOrCode != null && tokenOrCode.startsWith("ya29.")) ? tokenOrCode : provider.exchangeAuthCodeForAccessToken(tokenOrCode, redirectUri);
-        return loginWithOAuth(accessToken, provider, nativeClient);
+        return loginWithOAuth(provider.exchangeAuthCodeForAccessToken(code, redirectUri), provider);
     }
 
     private User createOAuthUser(UserDataDto info, String providerName) {
@@ -169,9 +172,9 @@ public class AuthService {
         return userRepository.save(user);
     }
 
-    private AuthResponseDto generateTokens(User user, boolean nativeClient) {
+    private AuthResponseDto generateTokens(User user) {
         String accessToken = jwtService.generateAccessToken(user);
-        String refreshToken = jwtService.generateRefreshToken(user, nativeClient ? REFRESH_TOKEN_DAYS_NATIVE : REFRESH_TOKEN_DAYS_WEB);
+        String refreshToken = jwtService.generateRefreshToken(user, REFRESH_TOKEN_DAYS);
         return new AuthResponseDto(accessToken, refreshToken);
     }
 
@@ -194,7 +197,7 @@ public class AuthService {
 
     public void setAuthCookies(HttpServletResponse response, AuthResponseDto tokens) {
         addCookie(response, accessCookieName, tokens.getAccessToken(), "/", JwtService.ACCESS_TOKEN_TTL);
-        addCookie(response, refreshCookieName, tokens.getRefreshToken(), REFRESH_COOKIE_PATH, Duration.ofDays(REFRESH_TOKEN_DAYS_WEB));
+        addCookie(response, refreshCookieName, tokens.getRefreshToken(), REFRESH_COOKIE_PATH, Duration.ofDays(REFRESH_TOKEN_DAYS));
     }
 
     public void clearAuthCookies(HttpServletResponse response) {
@@ -204,7 +207,7 @@ public class AuthService {
 
     private void addCookie(HttpServletResponse response, String name, String value, String path, Duration maxAge) {
         ResponseCookie cookie = ResponseCookie.from(name, value)
-                .httpOnly(true).secure(secureCookies).sameSite(sameSite).path(path).maxAge(maxAge).build();
+                .httpOnly(true).secure(secureCookies).sameSite("Strict").path(path).maxAge(maxAge).build();
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }
 

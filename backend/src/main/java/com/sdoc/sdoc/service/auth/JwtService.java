@@ -138,6 +138,15 @@ public class JwtService {
         return refreshToken.getUser();
     }
 
+    public User findRefreshTokenOwner(String rawToken) {
+        String[] parts = rawToken.split("\\.", 2);
+        if (parts.length != 2)
+            return null;
+        return refreshTokenRepository.findByTokenId(parts[0])
+                .filter(t -> passwordEncoder.matches(parts[1], t.getTokenHash()))
+                .map(RefreshToken::getUser).orElse(null);
+    }
+
     private static ResponseStatusException invalidSession() {
         return new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Session expired. Please sign in again.");
     }

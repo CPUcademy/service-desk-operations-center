@@ -19,6 +19,8 @@ import java.io.IOException;
 import java.util.List;
 
 public class JwtFilter extends OncePerRequestFilter {
+    // Every /api/v1/auth endpoint is public; authenticated endpoints must live elsewhere.
+    static final String PUBLIC_PREFIX = "/api/v1/auth/";
     private final JwtService jwtService;
     private final TokenRevocationService tokenRevocationService;
     private final AuthService authService;
@@ -31,12 +33,7 @@ public class JwtFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        String path = request.getRequestURI();
-        return path.equals("/api/v1/auth/login") ||
-                path.equals("/api/v1/auth/register") ||
-                path.equals("/api/v1/auth/refresh") ||
-                path.startsWith("/api/v1/auth/oauth/") ||
-                "OPTIONS".equalsIgnoreCase(request.getMethod());
+        return request.getRequestURI().startsWith(PUBLIC_PREFIX) || "OPTIONS".equalsIgnoreCase(request.getMethod());
     }
 
     @SuppressWarnings("NullableProblems")

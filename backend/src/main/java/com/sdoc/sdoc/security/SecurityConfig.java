@@ -55,10 +55,7 @@ public class SecurityConfig {
             )
             .authorizeHttpRequests(auth -> auth
                     .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                    .requestMatchers("/api/v1/auth/login").permitAll()
-                    .requestMatchers("/api/v1/auth/register").permitAll()
-                    .requestMatchers("/api/v1/auth/refresh").permitAll()
-                    .requestMatchers("/api/v1/auth/oauth/**").permitAll()
+                    .requestMatchers(JwtFilter.PUBLIC_PREFIX + "**").permitAll()
                     .anyRequest().authenticated()
             ).addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(new RateLimitFilter(rateLimitService), JwtFilter.class);

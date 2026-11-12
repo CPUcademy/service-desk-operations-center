@@ -36,12 +36,14 @@ public class GoogleOAuthProvider implements OAuthProvider {
                     .timeout(java.time.Duration.ofSeconds(12)).GET().build();
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() != 200)
-                throw new IllegalArgumentException("Google rejected the access token (HTTP " + response.statusCode() + "). Ensure the Android OAuth client is configured in Google Cloud Console.");
+                throw new IllegalArgumentException("Google rejected the access token (HTTP " + response.statusCode() + ").");
             JsonNode node = OBJECT_MAPPER.readTree(response.body());
             JsonNode emailNode = node.get("email");
             if (emailNode == null || emailNode.asText().isBlank())
                 throw new IllegalArgumentException("Google account did not return an email address. Ensure the 'email' scope is granted.");
-            String email = emailNode.asText();
+            if (!node.path("email_verified").asBoolean(false))
+                throw new IllegalArgumentException("Google account email is not verified.");
+            String email = emailNode.asText().trim().toLowerCase(java.util.Locale.ROOT);
             String name = node.has("name") ? node.get("name").asText() : email.split("@")[0];
             return new UserDataDto(email, name);
         } catch (IllegalArgumentException e) {
