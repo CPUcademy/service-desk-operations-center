@@ -4,7 +4,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class InputValidationService {
-    private static final String VALID_NAME_PATTERN = "^[a-zA-Z0-9ąćęłńóśźżĄĆĘŁŃÓŚŹŻäöüßÄÖÜß\\s\\-']*$";
+    private static final String VALID_NAME_PATTERN = "^[a-zA-Z0-9ąćęłńóśźżĄĆĘŁŃÓŚŹŻäöüßÄÖÜ\\s\\-']*$";
     private static final String VALID_EMAIL_PATTERN = "^[a-zA-Z0-9._%\\-+]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,}$";
     private static final String VALID_PASSWORD_PATTERN = "^[a-zA-Z0-9!@#$%^&*\\-_+=~`|\\\\:;\"'<>,.?/()\\[\\]{}]*$";
 

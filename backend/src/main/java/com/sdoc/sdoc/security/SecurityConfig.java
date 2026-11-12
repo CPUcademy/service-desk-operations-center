@@ -33,15 +33,12 @@ import org.springframework.http.HttpMethod;
 @EnableScheduling
 @EnableMethodSecurity
 public class SecurityConfig {
-    @Value("${cors.allowed-origins}")
-    private String corsAllowedOrigins;
-
-    // CSRF is covered by SameSite=Strict auth cookies plus the CORS origin allowlist; Bearer clients aren't exposed to it.
+    // CSRF is covered by SameSite=Strict auth cookies plus the CORS origin allowlist
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http, JwtService jwtService, TokenRevocationService tokenRevocationService,
-                                           AuthService authService, RateLimitService rateLimitService) throws Exception {
+                                           AuthService authService, RateLimitService rateLimitService, CorsConfigurationSource corsConfigurationSource) {
         JwtFilter jwtFilter = new JwtFilter(jwtService, tokenRevocationService, authService);
-        http.cors(cors -> cors.configurationSource(corsConfigurationSource()))
+        http.cors(cors -> cors.configurationSource(corsConfigurationSource))
             .csrf(AbstractHttpConfigurer::disable).sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .exceptionHandling(e -> e.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
             .headers(headers -> headers.crossOriginOpenerPolicy(coop ->
@@ -64,7 +61,7 @@ public class SecurityConfig {
     }
 
     @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
+    public CorsConfigurationSource corsConfigurationSource(@Value("${cors.allowed-origins}") String corsAllowedOrigins) {
         CorsConfiguration config = new CorsConfiguration();
         List<String> origins = Arrays.stream(corsAllowedOrigins.split(",")).map(String::trim).filter(value -> !value.isBlank()).toList();
         config.setAllowedOrigins(origins);

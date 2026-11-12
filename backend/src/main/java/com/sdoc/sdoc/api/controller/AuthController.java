@@ -13,8 +13,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.util.Map;
-
 @RestController
 @RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
@@ -22,7 +20,7 @@ public class AuthController {
     private final AuthService authService;
 
     @PostMapping("/register")
-    public ResponseEntity<AuthResponseDto> register(@RequestBody RegisterRequestDto dto, HttpServletRequest request, HttpServletResponse response) {
+    public ResponseEntity<AuthResponseDto> register(@RequestBody RegisterRequestDto dto, HttpServletResponse response) {
         return respond(authService.register(dto), response);
     }
 
@@ -32,7 +30,7 @@ public class AuthController {
     }
 
     @PostMapping("/refresh")
-    public ResponseEntity<AuthResponseDto> refresh(@RequestBody(required = false) Map<String, String> body, HttpServletRequest request, HttpServletResponse response) {
+    public ResponseEntity<AuthResponseDto> refresh(HttpServletRequest request, HttpServletResponse response) {
         String refreshToken = authService.resolveRefreshToken(request);
         if (refreshToken == null || refreshToken.isBlank())
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Session expired. Please sign in again.");

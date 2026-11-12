@@ -7,9 +7,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Duration;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 
-// ponytail: in-memory per instance, move to Redis/bucket4j if running more than one instance
 @Service
 public class RateLimitService {
     private static final long MAX_KEYS = 100_000;
@@ -21,7 +21,7 @@ public class RateLimitService {
             .expireAfterWrite(Duration.ofMinutes(10)).maximumSize(MAX_KEYS).build();
 
     public boolean tryAcquire(String key, int limitPerMinute) {
-        return requestWindows.get(key, k -> new AtomicInteger()).incrementAndGet() <= limitPerMinute;
+        return Objects.requireNonNull(requestWindows.get(key, k -> new AtomicInteger())).incrementAndGet() <= limitPerMinute;
     }
 
     public void checkLoginLockout(String loginKey) {
@@ -32,7 +32,7 @@ public class RateLimitService {
     }
 
     public void recordFailedLogin(String loginKey) {
-        int fails = loginFailures.get(loginKey, k -> new AtomicInteger()).incrementAndGet();
+        int fails = Objects.requireNonNull(loginFailures.get(loginKey, k -> new AtomicInteger())).incrementAndGet();
         long delayMs = switch (fails) {
             case 1, 2 -> 0;
             case 3 -> 60_000;

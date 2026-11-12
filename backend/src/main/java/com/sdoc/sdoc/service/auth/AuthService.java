@@ -103,8 +103,6 @@ public class AuthService {
         rateLimitService.checkLoginLockout(loginKey);
 
         User user = userRepository.findByEmail(email).orElse(null);
-        if (user != null && "google".equals(user.getOauthProvider()))
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "This email is already registered with Google.");
         boolean passwordMatches = passwordEncoder.matches(password, user != null ? user.getPasswordHash() : dummyHash);
         if (user == null || !passwordMatches) {
             rateLimitService.recordFailedLogin(loginKey);
@@ -164,7 +162,8 @@ public class AuthService {
     private User createOAuthUser(UserDataDto info, String providerName) {
         User user = new User();
         user.setEmail(info.getEmail());
-        user.setFullName(info.getFullName());
+        String name = info.getFullName().strip();
+        user.setFullName(name.substring(0, Math.min(name.length(), 100)));
         user.setPasswordHash(passwordEncoder.encode(UUID.randomUUID().toString()));
         user.setIsAdmin(false);
         user.setOauthProvider(providerName);

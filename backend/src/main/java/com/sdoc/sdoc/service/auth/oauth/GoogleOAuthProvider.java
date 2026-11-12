@@ -17,13 +17,13 @@ import java.nio.charset.StandardCharsets;
 public class GoogleOAuthProvider implements OAuthProvider {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
-    @Value("${spring.security.oauth2.client.registration.google.client-id:}")
+    @Value("${spring.security.oauth2.client.registration.google.client-id}")
     private String clientId;
 
-    @Value("${spring.security.oauth2.client.registration.google.client-secret:}")
+    @Value("${spring.security.oauth2.client.registration.google.client-secret}")
     private String clientSecret;
 
-    @Value("${oauth.google.default-redirect-uri:http://localhost:5173}")
+    @Value("${oauth.google.default-redirect-uri}")
     private String defaultRedirectUri;
 
     @Override
@@ -39,12 +39,12 @@ public class GoogleOAuthProvider implements OAuthProvider {
                 throw new IllegalArgumentException("Google rejected the access token (HTTP " + response.statusCode() + ").");
             JsonNode node = OBJECT_MAPPER.readTree(response.body());
             JsonNode emailNode = node.get("email");
-            if (emailNode == null || emailNode.asText().isBlank())
+            if (emailNode == null || emailNode.stringValue().isBlank())
                 throw new IllegalArgumentException("Google account did not return an email address. Ensure the 'email' scope is granted.");
             if (!node.path("email_verified").asBoolean(false))
                 throw new IllegalArgumentException("Google account email is not verified.");
-            String email = emailNode.asText().trim().toLowerCase(java.util.Locale.ROOT);
-            String name = node.has("name") ? node.get("name").asText() : email.split("@")[0];
+            String email = emailNode.stringValue().trim().toLowerCase(java.util.Locale.ROOT);
+            String name = node.has("name") ? node.get("name").stringValue() : email.split("@")[0];
             return new UserDataDto(email, name);
         } catch (IllegalArgumentException e) {
             throw e;
@@ -73,10 +73,10 @@ public class GoogleOAuthProvider implements OAuthProvider {
 
             JsonNode node = OBJECT_MAPPER.readTree(response.body());
             JsonNode accessTokenNode = node.get("access_token");
-            if (accessTokenNode == null || accessTokenNode.asText().isBlank()) {
+            if (accessTokenNode == null || accessTokenNode.stringValue().isBlank()) {
                 throw new IllegalArgumentException("Google token exchange returned no access token");
             }
-            return accessTokenNode.asText();
+            return accessTokenNode.stringValue();
         } catch (IllegalArgumentException | IllegalStateException e) {
             throw e;
         } catch (Exception e) {
@@ -88,8 +88,8 @@ public class GoogleOAuthProvider implements OAuthProvider {
     private String extractGoogleError(String responseBody) {
         try {
             JsonNode node = OBJECT_MAPPER.readTree(responseBody);
-            String error = node.has("error") ? node.get("error").asText() : null;
-            String desc = node.has("error_description") ? node.get("error_description").asText() : null;
+            String error = node.has("error") ? node.get("error").stringValue() : null;
+            String desc = node.has("error_description") ? node.get("error_description").stringValue() : null;
             if (desc != null && !desc.isBlank()) return desc;
             if (error != null && !error.isBlank()) return error;
         } catch (Exception ignored) {}
