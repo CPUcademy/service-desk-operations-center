@@ -7,7 +7,7 @@ function Login() {
     const [openSnackBar, setOpenSnackBar] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [successMessage, setSuccessMessage] = useState('');
-    const [formData, setFormData] = useState({ username: "", password: "" });
+    const [formData, setFormData] = useState({ email: "", password: "" });
 
     function handleChange(event: React.ChangeEvent<HTMLInputElement>) {
     const { name, value } = event.target;
@@ -18,9 +18,9 @@ function Login() {
     function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
         event.preventDefault();
         console.log(formData);
-        fetch('/login',{
+        fetch('http://localhost:8002/api/v1/auth/login',{
             method:'POST',
-            headers: {'Content-Type' : 'aplication/json'},
+            headers: {'Content-Type' : 'application/json'},
             body: JSON.stringify(formData),
         })
             .then(response => {
@@ -62,7 +62,7 @@ function Login() {
 
                         <input
                             type="text"
-                            name="username"
+                            name="email"
                             className="field-input"
                             onChange={handleChange}
                             placeholder="example@xyz.com"
