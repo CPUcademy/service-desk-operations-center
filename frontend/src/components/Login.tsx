@@ -4,9 +4,8 @@ import { Eye, EyeOff } from "lucide-react";
 import "./Login.css";
 
 function Login() {
-    const [openSnackBar, setOpenSnackBar] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
-    const [successMessage, setSuccessMessage] = useState('');
+    const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
     const [formData, setFormData] = useState({ email: "", password: "" });
 
     function handleChange(event: React.ChangeEvent<HTMLInputElement>) {
@@ -23,17 +22,12 @@ function Login() {
             headers: {'Content-Type' : 'application/json'},
             body: JSON.stringify(formData),
         })
-            .then(response => {
-                    if (!response.ok) throw new Error('Login failed');
-                })
-                .then(() => {
-                    setSuccessMessage('Login successful');
-                    setOpenSnackBar(true);
-                })
-                .catch(() => {
-                    setSuccessMessage('Failed to login');
-                    setOpenSnackBar(true);
-                });
+            .then(async response => {
+                if (response.ok) return setMessage({ text: 'Login successful', error: false });
+                const body = await response.json().catch(() => null);
+                setMessage({ text: body?.message ?? 'Failed to login', error: true });
+            })
+            .catch(() => setMessage({ text: 'Cannot reach server', error: true }));
     }
 
     return (
@@ -97,6 +91,11 @@ function Login() {
                                 Log in
                             </button>
                         </div>
+                        {message && (
+                            <p role="alert" style={{ color: message.error ? '#d32f2f' : '#2e7d32' }}>
+                                {message.text}
+                            </p>
+                        )}
                     </form>
                 </div>
             </main>
