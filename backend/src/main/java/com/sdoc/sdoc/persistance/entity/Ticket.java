@@ -16,6 +16,10 @@ public class Ticket {
     @JoinColumn(name="\"adminId\"")
     private User admin;
 
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name="\"userId\"", nullable = false)
+    private User user;
+
     @ManyToOne(fetch = FetchType.LAZY,optional = false)
     @JoinColumn(name="\"machineId\"", nullable = false)
     private Machine machine;

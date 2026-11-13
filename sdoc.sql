@@ -51,3 +51,5 @@ CREATE TABLE "RefreshTokens" (
     FOREIGN KEY ("userId")
     REFERENCES "User"("id")
 );
+
+CREATE INDEX "IX_RefreshTokens_userId" ON "RefreshTokens" ("userId");

@@ -4,6 +4,8 @@ import com.sdoc.sdoc.persistance.entity.RefreshToken;
 import com.sdoc.sdoc.persistance.entity.User;
 import com.sdoc.sdoc.persistance.repository.RefreshTokenRepository;
 import com.sdoc.sdoc.security.JwtClaim;
+import com.sdoc.sdoc.service.tokens.TokenRevocationService;
+import jakarta.annotation.PostConstruct;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
@@ -15,7 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.nio.charset.StandardCharsets;
-import java.security.Key;
+import javax.crypto.SecretKey;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
@@ -38,9 +40,20 @@ public class JwtService {
     private String jwtSecret;
 
     private final RefreshTokenRepository refreshTokenRepository;
+    private final TokenRevocationService tokenRevocationService;
+    private SecretKey signingKey;
 
-    public JwtService(RefreshTokenRepository refreshTokenRepository) {
+    public JwtService(RefreshTokenRepository refreshTokenRepository, TokenRevocationService tokenRevocationService) {
         this.refreshTokenRepository = refreshTokenRepository;
+        this.tokenRevocationService = tokenRevocationService;
+    }
+
+    @PostConstruct
+    void init() {
+        byte[] bytes = jwtSecret.getBytes(StandardCharsets.UTF_8);
+        if (bytes.length < 32)
+            throw new IllegalStateException("JWT secret must be at least 256 bits (32 bytes)");
+        signingKey = Keys.hmacShaKeyFor(bytes);
     }
 
     public static String sha256(String value) {
@@ -56,25 +69,18 @@ public class JwtService {
         return MessageDigest.isEqual(sha256(rawSecret).getBytes(StandardCharsets.UTF_8), storedHash.getBytes(StandardCharsets.UTF_8));
     }
 
-    private Key signingKey() {
-        byte[] bytes = jwtSecret.getBytes(StandardCharsets.UTF_8);
-        if (bytes.length < 32)
-            throw new IllegalStateException("JWT secret must be at least 256 bits (32 bytes)");
-        return Keys.hmacShaKeyFor(bytes);
-    }
-
     public String generateAccessToken(User user) {
         Instant now = Instant.now();
         Instant expiry = now.plus(ACCESS_TOKEN_TTL);
         return Jwts.builder().subject(user.getId().toString()).issuer(issuer).audience()
                 .add(audience).and().claim("isAdmin", user.getIsAdmin())
                 .claim("type", TOKEN_TYPE_ACCESS).issuedAt(Date.from(now))
-                .expiration(Date.from(expiry)).signWith(signingKey()).compact();
+                .expiration(Date.from(expiry)).signWith(signingKey).compact();
     }
 
     public JwtClaim validateAccessToken(String token) {
         try {
-            Claims claims = Jwts.parser().verifyWith((javax.crypto.SecretKey) signingKey())
+            Claims claims = Jwts.parser().verifyWith(signingKey)
                     .requireIssuer(issuer).requireAudience(audience).build().parseSignedClaims(token).getPayload();
             String type = claims.get("type", String.class);
             if (!TOKEN_TYPE_ACCESS.equals(type))
@@ -127,6 +133,7 @@ public class JwtService {
             if (refreshToken.getRevokedAt().isAfter(now.minus(ROTATION_GRACE)))
                 return refreshToken;
             refreshTokenRepository.deleteByUserId(refreshToken.getUser().getId());
+            tokenRevocationService.revokeUser(refreshToken.getUser().getId());
             log.warn("Refresh token reuse detected for tokenId: {}", tokenId);
             throw invalidSession();
         }

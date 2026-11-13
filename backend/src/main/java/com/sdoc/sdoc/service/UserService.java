@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Map;
@@ -32,6 +33,7 @@ public class UserService {
         return new UserDataDto(user.getId(), user.getFullName(), user.getEmail(), user.getIsAdmin(), user.getOauthProvider());
     }
 
+    @Transactional
     public void deleteAccount(Long userId, Map<String, String> body) {
         User user = findUser(userId);
         requireReauthenticated(user, body);
@@ -39,6 +41,7 @@ public class UserService {
         userRepository.delete(user);
     }
 
+    @Transactional
     public User changePassword(Long userId, Map<String, String> body) {
         User user = findUser(userId);
         if (user.getOauthProvider() != null)

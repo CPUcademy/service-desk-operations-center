@@ -16,6 +16,7 @@ import java.nio.charset.StandardCharsets;
 @Service
 public class GoogleOAuthProvider implements OAuthProvider {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder().connectTimeout(java.time.Duration.ofSeconds(12)).build();
 
     @Value("${spring.security.oauth2.client.registration.google.client-id}")
     private String clientId;
@@ -29,12 +30,11 @@ public class GoogleOAuthProvider implements OAuthProvider {
     @Override
     public UserDataDto fetchUserInfo(String accessToken) {
         try {
-            HttpClient client = HttpClient.newBuilder().connectTimeout(java.time.Duration.ofSeconds(12)).build();
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create("https://www.googleapis.com/oauth2/v3/userinfo"))
                     .header("Authorization", "Bearer " + accessToken)
                     .timeout(java.time.Duration.ofSeconds(12)).GET().build();
-            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() != 200)
                 throw new IllegalArgumentException("Google rejected the access token (HTTP " + response.statusCode() + ").");
             JsonNode node = OBJECT_MAPPER.readTree(response.body());
@@ -44,7 +44,8 @@ public class GoogleOAuthProvider implements OAuthProvider {
             if (!node.path("email_verified").asBoolean(false))
                 throw new IllegalArgumentException("Google account email is not verified.");
             String email = emailNode.stringValue().trim().toLowerCase(java.util.Locale.ROOT);
-            String name = node.has("name") ? node.get("name").stringValue() : email.split("@")[0];
+            JsonNode nameNode = node.path("name");
+            String name = nameNode.isString() && !nameNode.stringValue().isBlank() ? nameNode.stringValue() : email.split("@")[0];
             return new UserDataDto(email, name);
         } catch (IllegalArgumentException e) {
             throw e;
@@ -58,14 +59,13 @@ public class GoogleOAuthProvider implements OAuthProvider {
         try {
             validateOAuthConfiguration();
             String effectiveRedirectUri = (redirectUri == null || redirectUri.isBlank()) ? defaultRedirectUri : redirectUri;
-            HttpClient client = HttpClient.newBuilder().connectTimeout(java.time.Duration.ofSeconds(12)).build();
             String body = "code=" + encode(authCode) + "&client_id=" + encode(clientId) + "&client_secret=" + encode(clientSecret)
                     + "&redirect_uri=" + encode(effectiveRedirectUri) + "&grant_type=authorization_code";
             HttpRequest request = HttpRequest.newBuilder().uri(URI.create("https://oauth2.googleapis.com/token"))
                     .header("Content-Type", "application/x-www-form-urlencoded")
                     .timeout(java.time.Duration.ofSeconds(12)).POST(HttpRequest.BodyPublishers.ofString(body)).build();
 
-            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() != 200) {
                 String googleError = extractGoogleError(response.body());
                 throw new IllegalArgumentException("Google authorization code exchange failed: " + googleError);
