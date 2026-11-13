@@ -143,14 +143,11 @@ public class AuthService {
         UserDataDto oauthUser = provider.fetchUserInfo(accessToken);
         String providerName = provider.getProviderName();
 
-        User user = userRepository.findByEmail(oauthUser.getEmail()).map(existing -> {
-            if (existing.getOauthProvider() == null)
-                throw new ResponseStatusException(HttpStatus.CONFLICT, "This email is already registered with password login.");
-            if (!providerName.equals(existing.getOauthProvider()))
-                throw new ResponseStatusException(HttpStatus.CONFLICT, "This email is registered with a different OAuth provider.");
-            return existing;
-        }).orElseGet(() -> createOAuthUser(oauthUser, providerName));
-
+        User user = userRepository.findByEmail(oauthUser.getEmail()).orElseGet(() -> createOAuthUser(oauthUser, providerName));
+        if (user.getOauthProvider() == null)
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "This email is already registered with password login.");
+        if (!providerName.equals(user.getOauthProvider()))
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "This email is registered with a different OAuth provider.");
         return generateTokens(user);
     }
 
@@ -168,10 +165,14 @@ public class AuthService {
         user.setIsAdmin(false);
         user.setOauthProvider(providerName);
 
-        return userRepository.save(user);
+        try {
+            return userRepository.saveAndFlush(user);
+        } catch (DataIntegrityViolationException ex) {
+            return userRepository.findByEmail(info.getEmail()).orElseThrow(() -> ex);
+        }
     }
 
-    private AuthResponseDto generateTokens(User user) {
+    public AuthResponseDto generateTokens(User user) {
         return generateTokens(user, Instant.now().plus(Duration.ofDays(REFRESH_TOKEN_DAYS)));
     }
 

@@ -29,10 +29,10 @@ CREATE TABLE "Ticket" (
   PRIMARY KEY ("id"),
   CONSTRAINT "FK_Ticket_adminId"
     FOREIGN KEY ("adminId")
-      REFERENCES "User"("id"),
+      REFERENCES "User"("id") ON DELETE SET NULL,
   CONSTRAINT "FK_Ticket_userId"
     FOREIGN KEY ("userId")
-      REFERENCES "User"("id"),
+      REFERENCES "User"("id") ON DELETE CASCADE,
   CONSTRAINT "FK_Ticket_machineId"
     FOREIGN KEY ("machineId")
       REFERENCES "Machine"("id")

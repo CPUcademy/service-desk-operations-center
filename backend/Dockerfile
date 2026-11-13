@@ -22,6 +22,6 @@ USER appuser
 
 EXPOSE 8002
 
-ENV JAVA_OPTS="-Xms128m -Xmx224m -XX:ReservedCodeCacheSize=32m -XX:+UseSerialGC -Xss256k"
+ENV JAVA_OPTS="-XX:MaxRAMPercentage=70 -XX:ReservedCodeCacheSize=32m -XX:+UseSerialGC -Xss256k"
 
-ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
+ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar app.jar"]

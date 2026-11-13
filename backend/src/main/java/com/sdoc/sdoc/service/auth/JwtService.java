@@ -34,7 +34,7 @@ public class JwtService {
     private final String issuer = "sdoc";
     private final String audience = "sdoc-client";
 
-    @Value("${jwt.s1ecret}")
+    @Value("${jwt.secret}")
     private String jwtSecret;
 
     private final RefreshTokenRepository refreshTokenRepository;
@@ -85,7 +85,9 @@ public class JwtService {
 
             Long userId = Long.parseLong(subject);
             Boolean isAdmin = claims.get("isAdmin", Boolean.class);
-            return new JwtClaim(userId, Boolean.TRUE.equals(isAdmin));
+            if (claims.getIssuedAt() == null)
+                throw new IllegalArgumentException("Invalid token");
+            return new JwtClaim(userId, Boolean.TRUE.equals(isAdmin), claims.getIssuedAt().toInstant());
         } catch (JwtException | IllegalArgumentException ex) {
             throw new IllegalArgumentException("Session expired. Please sign in again.");
         }

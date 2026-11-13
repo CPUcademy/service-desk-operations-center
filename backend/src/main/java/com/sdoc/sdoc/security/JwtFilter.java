@@ -50,7 +50,7 @@ public class JwtFilter extends OncePerRequestFilter {
             if (tokenRevocationService.isAccessTokenRevoked(token))
                 throw new IllegalArgumentException("Access token has been revoked");
             principal = jwtService.validateAccessToken(token);
-            if (tokenRevocationService.isUserRevoked(principal.userId()))
+            if (tokenRevocationService.isUserRevoked(principal.userId(), principal.issuedAt()))
                 throw new IllegalArgumentException("User has been revoked");
         } catch (JwtException | IllegalArgumentException ex) {
             SecurityContextHolder.clearContext();
