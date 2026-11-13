@@ -4,10 +4,9 @@ import { Eye, EyeOff } from "lucide-react";
 import "./Login.css";
 
 function Login() {
-    const [openSnackBar, setOpenSnackBar] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
-    const [successMessage, setSuccessMessage] = useState('');
-    const [formData, setFormData] = useState({ username: "", password: "" });
+    const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
+    const [formData, setFormData] = useState({ email: "", password: "" });
 
     function handleChange(event: React.ChangeEvent<HTMLInputElement>) {
     const { name, value } = event.target;
@@ -17,24 +16,18 @@ function Login() {
 
     function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
         event.preventDefault();
-        console.log(formData);
-        fetch('/login',{
+        fetch('http://localhost:8002/api/v1/auth/login',{
             method:'POST',
-            headers: {'Content-Type' : 'aplication/json'},
+            credentials: 'include',
+            headers: {'Content-Type' : 'application/json'},
             body: JSON.stringify(formData),
         })
-            .then(response => {
-                    if (!response.ok) throw new Error('Login failed');
-                    return response.json();
-                })
-                .then(userData => {
-                    setSuccessMessage('Login successful');
-                    setOpenSnackBar(true);
-                })
-                .catch(() => {
-                    setSuccessMessage('Failed to login');
-                    setOpenSnackBar(true);
-                });
+            .then(async response => {
+                if (response.ok) return setMessage({ text: 'Login successful', error: false });
+                const body = await response.json().catch(() => null);
+                setMessage({ text: body?.message ?? 'Failed to login', error: true });
+            })
+            .catch(() => setMessage({ text: 'Cannot reach server', error: true }));
     }
 
     return (
@@ -62,7 +55,7 @@ function Login() {
 
                         <input
                             type="text"
-                            name="username"
+                            name="email"
                             className="field-input"
                             onChange={handleChange}
                             placeholder="example@xyz.com"
@@ -98,6 +91,11 @@ function Login() {
                                 Log in
                             </button>
                         </div>
+                        {message && (
+                            <p role="alert" style={{ color: message.error ? '#d32f2f' : '#2e7d32' }}>
+                                {message.text}
+                            </p>
+                        )}
                     </form>
                 </div>
             </main>

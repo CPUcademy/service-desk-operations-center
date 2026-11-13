@@ -12,9 +12,13 @@ public class Ticket {
     @Column(name="\"id\"", nullable = false)
     private long id;
 
-    @ManyToOne(fetch = FetchType.LAZY,optional = false)
-    @JoinColumn(name="\"adminId\"", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name="\"adminId\"")
     private User admin;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name="\"userId\"", nullable = false)
+    private User user;
 
     @ManyToOne(fetch = FetchType.LAZY,optional = false)
     @JoinColumn(name="\"machineId\"", nullable = false)

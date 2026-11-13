@@ -4,8 +4,6 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.math.BigDecimal;
-
 @Getter @Setter @Entity
 @Table(name = "\"User\"")
 public class User {
@@ -25,7 +23,4 @@ public class User {
 
     @Column(name = "\"isAdmin\"", nullable = false)
     private Boolean isAdmin;
-
-    @Column(name = "\"oauthProvider\"")
-    private String oauthProvider; // null = password account, "google" = Google OAuth
 }
