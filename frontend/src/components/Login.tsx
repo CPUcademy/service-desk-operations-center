@@ -17,17 +17,16 @@ function Login() {
 
     function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
         event.preventDefault();
-        console.log(formData);
         fetch('http://localhost:8002/api/v1/auth/login',{
             method:'POST',
+            credentials: 'include',
             headers: {'Content-Type' : 'application/json'},
             body: JSON.stringify(formData),
         })
             .then(response => {
                     if (!response.ok) throw new Error('Login failed');
-                    return response.json();
                 })
-                .then(userData => {
+                .then(() => {
                     setSuccessMessage('Login successful');
                     setOpenSnackBar(true);
                 })
