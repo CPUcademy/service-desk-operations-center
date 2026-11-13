@@ -1,6 +1,6 @@
 package com.sdoc.sdoc.api.controller;
 
-import com.sdoc.sdoc.persistance.entity.Machine;
+import com.sdoc.sdoc.api.dto.MachineDto;
 import com.sdoc.sdoc.service.MachineService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -14,7 +14,7 @@ public class MachineController {
     private final MachineService machineService;
 
     @GetMapping
-    public List<Machine> getAll() {
+    public List<MachineDto> getAll() {
         return machineService.getAll();
     }
 }

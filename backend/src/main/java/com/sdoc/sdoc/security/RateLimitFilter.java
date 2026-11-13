@@ -1,5 +1,6 @@
 package com.sdoc.sdoc.security;
 
+import com.sdoc.sdoc.api.controller.InternalMachineController;
 import com.sdoc.sdoc.service.RateLimitService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -20,7 +21,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        return "OPTIONS".equalsIgnoreCase(request.getMethod());
+        // Workers may share one NAT IP
+        return "OPTIONS".equalsIgnoreCase(request.getMethod()) || request.getRequestURI().startsWith(InternalMachineController.PREFIX);
     }
 
     @SuppressWarnings("NullableProblems")

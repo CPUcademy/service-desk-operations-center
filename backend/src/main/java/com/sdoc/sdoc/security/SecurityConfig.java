@@ -1,5 +1,6 @@
 package com.sdoc.sdoc.security;
 
+import com.sdoc.sdoc.api.controller.InternalMachineController;
 import com.sdoc.sdoc.service.RateLimitService;
 import com.sdoc.sdoc.service.auth.AuthService;
 import com.sdoc.sdoc.service.auth.JwtService;
@@ -53,7 +54,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                     .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                     .requestMatchers(JwtFilter.PUBLIC_PREFIX + "**").permitAll()
-                    .requestMatchers(HttpMethod.GET, "/actuator/health").permitAll()
+                    .requestMatchers(InternalMachineController.PREFIX + "**").permitAll()
                     .anyRequest().authenticated()
             ).addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(new RateLimitFilter(rateLimitService), JwtFilter.class);

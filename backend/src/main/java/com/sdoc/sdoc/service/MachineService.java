@@ -1,19 +1,42 @@
 package com.sdoc.sdoc.service;
 
-import com.sdoc.sdoc.persistance.entity.Machine;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.sdoc.sdoc.api.dto.MachineDto;
+import com.sdoc.sdoc.api.dto.MachineMetricsDto;
 import com.sdoc.sdoc.persistance.repository.MachineRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class MachineService {
+    private static final Duration METRICS_TTL = Duration.ofMinutes(2);
     private final MachineRepository machineRepository;
+    private final Cache<Long, MachineMetricsDto> metrics = Caffeine.newBuilder()
+            .expireAfterWrite(METRICS_TTL).maximumSize(10_000).build();
 
-    public List<Machine> getAll() {
-        return machineRepository.findAll(Sort.by("id"));
+    public List<MachineDto> getAll() {
+        return machineRepository.findAll(Sort.by("id")).stream()
+                .map(m -> new MachineDto(m.getId(), m.getType(), m.getDepartment(), m.getStatus(), m.getHostname(),
+                        m.getIpAddress(), metrics.getIfPresent(m.getId()))).toList();
+    }
+
+    public void saveMetrics(Long machineId, MachineMetricsDto dto) {
+        if (dto == null || isNotPercent(dto.cpuUsage()) || isNotPercent(dto.ramUsage())
+                || dto.latencyMs() == null || !Double.isFinite(dto.latencyMs()) || dto.latencyMs() < 0)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid metrics");
+        metrics.put(machineId, new MachineMetricsDto(dto.cpuUsage(), dto.ramUsage(), dto.latencyMs(), Instant.now()));
+    }
+
+    private static boolean isNotPercent(Double value) {
+        return value == null || value < 0 || value > 100;
     }
 }
