@@ -3,7 +3,6 @@ package com.sdoc.sdoc.api.controller;
 import com.sdoc.sdoc.api.dto.AuthResponseDto;
 import com.sdoc.sdoc.api.dto.LoginRequestDto;
 import com.sdoc.sdoc.api.dto.RegisterRequestDto;
-import com.sdoc.sdoc.api.dto.TokenRequestDto;
 import com.sdoc.sdoc.service.auth.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -42,13 +41,6 @@ public class AuthController {
         authService.logout(authService.resolveAccessToken(request), authService.resolveRefreshToken(request));
         authService.clearAuthCookies(response);
         return ResponseEntity.noContent().build();
-    }
-
-    @PostMapping("/oauth/{provider}")
-    public ResponseEntity<AuthResponseDto> oauth(@PathVariable String provider, @RequestBody TokenRequestDto dto, HttpServletResponse response) {
-        if (dto.getToken() == null || dto.getToken().isBlank())
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Missing authorization code.");
-        return respond(authService.loginWithAuthCode(provider, dto.getToken(), dto.getRedirectUri()), response);
     }
 
     private ResponseEntity<AuthResponseDto> respond(AuthResponseDto tokens, HttpServletResponse response) {

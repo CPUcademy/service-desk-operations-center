@@ -14,11 +14,4 @@ public class UserDataDto {
     private String fullName;
     private String email;
     private Boolean isAdmin;
-    private String oauthProvider;
-
-    // Convenience constructor for OAuth user info (without id/username)
-    public UserDataDto(String email, String fullName) {
-        this.email = email;
-        this.fullName = fullName;
-    }
 }

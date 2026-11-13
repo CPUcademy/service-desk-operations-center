@@ -3,7 +3,6 @@ CREATE TABLE "User" (
   "fullName" VARCHAR(100) NOT NULL,
   "email" VARCHAR(255) NOT NULL UNIQUE,
   "passwordHash" VARCHAR(255) NULL,
-  "oauthProvider" VARCHAR(32) NULL,
   "isAdmin" BOOLEAN NOT NULL DEFAULT FALSE,
   PRIMARY KEY ("id")
 );

@@ -3,14 +3,11 @@ package com.sdoc.sdoc.service.auth;
 import com.sdoc.sdoc.api.dto.AuthResponseDto;
 import com.sdoc.sdoc.api.dto.LoginRequestDto;
 import com.sdoc.sdoc.api.dto.RegisterRequestDto;
-import com.sdoc.sdoc.api.dto.UserDataDto;
 import com.sdoc.sdoc.persistance.entity.RefreshToken;
 import com.sdoc.sdoc.persistance.entity.User;
 import com.sdoc.sdoc.persistance.repository.RefreshTokenRepository;
 import com.sdoc.sdoc.persistance.repository.UserRepository;
 import com.sdoc.sdoc.service.RateLimitService;
-import com.sdoc.sdoc.service.auth.oauth.OAuthProvider;
-import com.sdoc.sdoc.service.auth.oauth.OAuthProviderRegistry;
 import com.sdoc.sdoc.service.tokens.TokenRevocationService;
 import com.sdoc.sdoc.service.validation.InputValidationService;
 import jakarta.annotation.PostConstruct;
@@ -47,7 +44,6 @@ public class AuthService {
     private final TokenRevocationService tokenRevocationService;
     private final InputValidationService inputValidationService;
     private final RateLimitService rateLimitService;
-    private final OAuthProviderRegistry oauthProviderRegistry;
 
     @Value("${auth.cookie.access.name}")
     private String accessCookieName;
@@ -72,11 +68,8 @@ public class AuthService {
         requireValid(inputValidationService.validateFullName(fullName));
         requireValid(inputValidationService.validatePassword(dto.getPassword()));
 
-        userRepository.findByEmail(email).ifPresent(existing -> {
-            if ("google".equals(existing.getOauthProvider()))
-                throw new ResponseStatusException(HttpStatus.CONFLICT, "This email is already registered with Google.");
+        if (userRepository.findByEmail(email).isPresent())
             throw emailTaken();
-        });
 
         User user = new User();
         user.setFullName(fullName);
@@ -137,39 +130,6 @@ public class AuthService {
         }
         if (userId != null)
             refreshTokenRepository.deleteByUserId(userId);
-    }
-
-    private AuthResponseDto loginWithOAuth(String accessToken, OAuthProvider provider) {
-        UserDataDto oauthUser = provider.fetchUserInfo(accessToken);
-        String providerName = provider.getProviderName();
-
-        User user = userRepository.findByEmail(oauthUser.getEmail()).orElseGet(() -> createOAuthUser(oauthUser, providerName));
-        if (user.getOauthProvider() == null)
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "This email is already registered with password login.");
-        if (!providerName.equals(user.getOauthProvider()))
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "This email is registered with a different OAuth provider.");
-        return generateTokens(user);
-    }
-
-    public AuthResponseDto loginWithAuthCode(String providerName, String code, String redirectUri) {
-        OAuthProvider provider = oauthProviderRegistry.getProvider(providerName);
-        return loginWithOAuth(provider.exchangeAuthCodeForAccessToken(code, redirectUri), provider);
-    }
-
-    private User createOAuthUser(UserDataDto info, String providerName) {
-        User user = new User();
-        user.setEmail(info.getEmail());
-        String name = info.getFullName().strip();
-        user.setFullName(name.substring(0, Math.min(name.length(), 100)));
-        user.setPasswordHash(passwordEncoder.encode(UUID.randomUUID().toString()));
-        user.setIsAdmin(false);
-        user.setOauthProvider(providerName);
-
-        try {
-            return userRepository.saveAndFlush(user);
-        } catch (DataIntegrityViolationException ex) {
-            return userRepository.findByEmail(info.getEmail()).orElseThrow(() -> ex);
-        }
     }
 
     public AuthResponseDto generateTokens(User user) {
