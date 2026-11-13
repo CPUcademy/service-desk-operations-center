@@ -2,7 +2,9 @@ package com.sdoc.sdoc.security.utilities;
 
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -20,6 +22,11 @@ public class ApiExceptionHandler {
     public ResponseEntity<Map<String, String>> handleStatus(ResponseStatusException ex) {
         String message = ex.getReason() == null ? GENERIC_MESSAGE : ex.getReason();
         return ResponseEntity.status(ex.getStatusCode()).body(Map.of("message", message));
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<Map<String, String>> handleAccessDenied() {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Access denied"));
     }
 
     @ExceptionHandler(Exception.class)

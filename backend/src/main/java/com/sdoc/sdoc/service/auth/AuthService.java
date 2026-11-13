@@ -29,13 +29,11 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
-@Transactional
 public class AuthService {
     private static final String BEARER_PREFIX = "Bearer ";
     private static final String REFRESH_COOKIE_PATH = "/api/v1/auth";
@@ -99,26 +97,32 @@ public class AuthService {
         if (email == null || email.isEmpty() || password == null || password.length() > MAX_PASSWORD_LENGTH)
             throw invalidCredentials();
 
-        String loginKey = "login:" + clientIp + ":" + email;
-        rateLimitService.checkLoginLockout(loginKey);
+        String ipKey = "login-ip:" + clientIp + ":" + email;
+        // ponytail: an attacker can keep a known email locked out (≤10 min per 11 failures)
+        String emailKey = "login-email:" + email;
+        rateLimitService.checkLoginLockout(ipKey);
+        rateLimitService.checkLoginLockout(emailKey);
 
         User user = userRepository.findByEmail(email).orElse(null);
         boolean passwordMatches = passwordEncoder.matches(password, user != null ? user.getPasswordHash() : dummyHash);
         if (user == null || !passwordMatches) {
-            rateLimitService.recordFailedLogin(loginKey);
+            rateLimitService.recordFailedLogin(ipKey, 2);
+            rateLimitService.recordFailedLogin(emailKey, 10);
             throw invalidCredentials();
         }
 
-        rateLimitService.resetFailedLogin(loginKey);
+        rateLimitService.resetFailedLogin(ipKey);
+        rateLimitService.resetFailedLogin(emailKey);
         return generateTokens(user);
     }
 
     @Transactional(noRollbackFor = ResponseStatusException.class)
     public AuthResponseDto refresh(String refreshToken) {
-        User user = jwtService.validateRefreshToken(refreshToken);
-        return generateTokens(user);
+        RefreshToken current = jwtService.validateRefreshToken(refreshToken);
+        return generateTokens(current.getUser(), current.getExpiresAt());
     }
 
+    @Transactional
     public void logout(String accessToken, String refreshToken) {
         Long userId = null;
         if (accessToken != null && !accessToken.isBlank()) {
@@ -131,12 +135,8 @@ public class AuthService {
             User owner = jwtService.findRefreshTokenOwner(refreshToken);
             if (owner != null) userId = owner.getId();
         }
-        if (userId == null) return;
-
-        List<RefreshToken> activeTokens = refreshTokenRepository.findAllByUserAndRevokedAtIsNull(userRepository.getReferenceById(userId));
-        Instant now = Instant.now();
-        activeTokens.forEach(t -> t.setRevokedAt(now));
-        refreshTokenRepository.saveAll(activeTokens);
+        if (userId != null)
+            refreshTokenRepository.deleteByUserId(userId);
     }
 
     private AuthResponseDto loginWithOAuth(String accessToken, OAuthProvider provider) {
@@ -172,8 +172,12 @@ public class AuthService {
     }
 
     private AuthResponseDto generateTokens(User user) {
+        return generateTokens(user, Instant.now().plus(Duration.ofDays(REFRESH_TOKEN_DAYS)));
+    }
+
+    private AuthResponseDto generateTokens(User user, Instant refreshExpiresAt) {
         String accessToken = jwtService.generateAccessToken(user);
-        String refreshToken = jwtService.generateRefreshToken(user, REFRESH_TOKEN_DAYS);
+        String refreshToken = jwtService.generateRefreshToken(user, refreshExpiresAt);
         return new AuthResponseDto(accessToken, refreshToken);
     }
 

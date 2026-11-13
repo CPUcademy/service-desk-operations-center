@@ -10,6 +10,7 @@ import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 
+// ponytail: in-memory, resets on restart and isn't shared across replicas; move to Redis when running >1 instance.
 @Service
 public class RateLimitService {
     private static final long MAX_KEYS = 100_000;
@@ -31,17 +32,17 @@ public class RateLimitService {
             throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "Too many failed login attempts. Please try again in " + remaining + " seconds.");
     }
 
-    public void recordFailedLogin(String loginKey) {
-        int fails = Objects.requireNonNull(loginFailures.get(loginKey, k -> new AtomicInteger())).incrementAndGet();
+    public void recordFailedLogin(String loginKey, int freeAttempts) {
+        int fails = Objects.requireNonNull(loginFailures.get(loginKey, k -> new AtomicInteger())).incrementAndGet() - freeAttempts;
+        if (fails <= 0)
+            return;
         long delayMs = switch (fails) {
-            case 1, 2 -> 0;
-            case 3 -> 60_000;
-            case 4 -> 120_000;
-            case 5 -> 300_000;
+            case 1 -> 60_000;
+            case 2 -> 120_000;
+            case 3 -> 300_000;
             default -> 600_000;
         };
-        if (delayMs > 0)
-            loginLockouts.put(loginKey, System.currentTimeMillis() + delayMs);
+        loginLockouts.put(loginKey, System.currentTimeMillis() + delayMs);
     }
 
     public void resetFailedLogin(String loginKey) {

@@ -21,9 +21,9 @@ public class UserController {
     private final TokenRevocationService tokenRevocationService;
 
     @DeleteMapping("/me")
-    public ResponseEntity<Void> deleteAccount(Authentication authentication, @RequestBody Map<String, String> body, HttpServletResponse response) {
+    public ResponseEntity<Void> deleteAccount(Authentication authentication, @RequestBody(required = false) Map<String, String> body, HttpServletResponse response) {
         Long userId = SecurityUtils.getUserId(authentication);
-        userService.deleteAccount(userId, body);
+        userService.deleteAccount(userId, body == null ? Map.of() : body);
         tokenRevocationService.revokeUser(userId);
         authService.clearAuthCookies(response);
         return ResponseEntity.noContent().build();

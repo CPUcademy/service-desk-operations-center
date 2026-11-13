@@ -1,67 +1,31 @@
 package com.sdoc.sdoc.service.tokens;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import com.sdoc.sdoc.service.auth.JwtService;
 import org.springframework.stereotype.Service;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.time.Instant;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-
 @Service
 public class TokenRevocationService {
-    private static final String REVOKED_ACCESS_PREFIX = "revoked:access:";
-    private final Map<String, Instant> revokedTokens = new ConcurrentHashMap<>();
-    private final Map<Long, Instant> revokedUsers = new ConcurrentHashMap<>();
-    private final JwtService jwtService;
-
-    public TokenRevocationService(JwtService jwtService) {
-        this.jwtService = jwtService;
-    }
+    private static final long MAX_ENTRIES = 100_000;
+    private final Cache<String, Boolean> revokedTokens = Caffeine.newBuilder()
+            .expireAfterWrite(JwtService.ACCESS_TOKEN_TTL).maximumSize(MAX_ENTRIES).build();
+    private final Cache<Long, Boolean> revokedUsers = Caffeine.newBuilder()
+            .expireAfterWrite(JwtService.ACCESS_TOKEN_TTL).maximumSize(MAX_ENTRIES).build();
 
     public void revokeAccessToken(String token) {
-        Instant expiry = jwtService.getAccessTokenExpiry(token);
-        Instant now = Instant.now();
-        if (!expiry.isAfter(now))
-            return;
-
-        String key = REVOKED_ACCESS_PREFIX + sha256Hex(token);
-        revokedTokens.put(key, expiry);
+        revokedTokens.put(JwtService.sha256(token), true);
     }
 
     public void revokeUser(Long userId) {
-        revokedUsers.put(userId, Instant.now().plus(JwtService.ACCESS_TOKEN_TTL));
+        revokedUsers.put(userId, true);
     }
 
     public boolean isUserRevoked(Long userId) {
-        Instant until = revokedUsers.get(userId);
-        return until != null && until.isAfter(Instant.now());
+        return revokedUsers.getIfPresent(userId) != null;
     }
 
     public boolean isAccessTokenRevoked(String token) {
-        cleanupExpiredEntries();
-        String key = REVOKED_ACCESS_PREFIX + sha256Hex(token);
-        Instant expiry = revokedTokens.get(key);
-        return expiry != null && expiry.isAfter(Instant.now());
-    }
-
-    private void cleanupExpiredEntries() {
-        Instant now = Instant.now();
-        revokedTokens.entrySet().removeIf(entry -> !entry.getValue().isAfter(now));
-        revokedUsers.entrySet().removeIf(entry -> !entry.getValue().isAfter(now));
-    }
-
-    private static String sha256Hex(String token) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(token.getBytes(StandardCharsets.UTF_8));
-            StringBuilder hex = new StringBuilder(hash.length * 2);
-            for (byte b : hash)
-                hex.append(String.format("%02x", b));
-            return hex.toString();
-        } catch (Exception ex) {
-            throw new IllegalStateException("Failed to hash token", ex);
-        }
+        return revokedTokens.getIfPresent(JwtService.sha256(token)) != null;
     }
 }
