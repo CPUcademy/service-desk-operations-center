@@ -10,7 +10,8 @@ import PublicRoute from './auth/PublicRoute';
 import {
     BrowserRouter,
     Routes,
-    Route
+    Route,
+    Navigate
 } from 'react-router-dom';
 function App() {
 
@@ -28,6 +29,9 @@ function App() {
                     <Route element={<ProtectedRoute />}>
                         <Route path="/dashboard" element={<Dashboard />} />
                     </Route>
+
+                    {/* Anything else (including "/") goes to login */}
+                    <Route path="*" element={<Navigate to="/login" replace />} />
 
                 </Routes>
             </BrowserRouter>
