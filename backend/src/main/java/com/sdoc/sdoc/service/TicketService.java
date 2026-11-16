@@ -42,7 +42,7 @@ public class TicketService {
         return ticketRepository.findById(userId).stream().map(this::convertToDTO).toList();
     }
 
-    public TicketDto createTicket (CreateTicketRequestDto ticketFromFrontend, long userId) {
+    public TicketDto createTicket(CreateTicketRequestDto ticketFromFrontend, long userId) {
         Machine machine = machineRepository.findById(ticketFromFrontend.machineId()).orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Machine not found"));
         User user = userRepository.findById(userId).orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Error! Please sign in again."));
 
@@ -55,5 +55,13 @@ public class TicketService {
         ticket = ticketRepository.save(ticket);
 
         return convertToDTO(ticket);
+    }
+
+    public void markTicketAsFixed(long id, Long adminId) {
+        Ticket ticket = ticketRepository.findById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Ticket not found"));
+        User admin = userRepository.findById(adminId).orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Error! Please sign in again."));
+        ticket.setAdmin(admin);
+        ticket.setFixed(true);
+        ticketRepository.save(ticket);
     }
 }
