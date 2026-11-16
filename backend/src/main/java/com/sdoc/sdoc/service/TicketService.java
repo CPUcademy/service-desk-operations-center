@@ -24,33 +24,22 @@ public class TicketService {
     private final MachineRepository machineRepository;
 
     public List<TicketDto> getAll() {
-        return ticketRepository.findAll(Sort.by("id")).stream().map(this::toDto).toList();
+        return ticketRepository.findAll(Sort.by("id")).stream().map(this::convertToDTO).toList();
     }
 
-    private TicketDto toDto(Ticket ticket) {
+    private TicketDto convertToDTO(Ticket ticket) {
         User admin = ticket.getAdmin();
-        Long adminId = null;
-        String adminFullName = null;
-        if (admin != null) {
-            adminId = admin.getId();
-            adminFullName = admin.getFullName();
-        }
-        return new TicketDto(
-            ticket.getId(),
-            adminId,
-            ticket.getUser().getId(),
-            ticket.getMachine().getId(),
-            ticket.getDescription(),
-            ticket.getPriority(),
-            ticket.isFixed(),
-            adminFullName,
-            ticket.getUser().getFullName(),
-            ticket.getMachine().getHostname()
+        Long adminId = admin != null ? admin.getId() : null;
+        String adminFullName = admin != null ? admin.getFullName() : null;
+
+        return new TicketDto(ticket.getId(), adminId, ticket.getUser().getId(),
+                ticket.getMachine().getId(), ticket.getDescription(), ticket.getPriority(), ticket.isFixed(),
+                adminFullName, ticket.getUser().getFullName(), ticket.getMachine().getHostname()
         );
     }
 
     public List<TicketDto> getUserTickets(long userId){
-        return ticketRepository.findByUserId(userId).stream().map(this::toDto).toList();
+        return ticketRepository.findById(userId).stream().map(this::convertToDTO).toList();
     }
 
     public TicketDto createTicket (CreateTicketRequestDto ticketFromFrontend, long userId) {
@@ -65,6 +54,6 @@ public class TicketService {
 
         ticket = ticketRepository.save(ticket);
 
-        return toDto(ticket);
+        return convertToDTO(ticket);
     }
 }

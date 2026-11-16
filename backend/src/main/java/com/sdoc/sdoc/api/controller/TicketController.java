@@ -14,8 +14,8 @@ import org.springframework.web.bind.annotation.*;
 public class TicketController {
     private final TicketService ticketService;
 
-    @PostMapping
-    public TicketDto postTickets(Authentication authentication, @RequestBody CreateTicketRequestDto body) {
+    @PostMapping("/post")
+    public TicketDto postTicket(Authentication authentication, @RequestBody CreateTicketRequestDto body) {
         return ticketService.createTicket(body, SecurityUtils.getUserId(authentication));
     }
 }
