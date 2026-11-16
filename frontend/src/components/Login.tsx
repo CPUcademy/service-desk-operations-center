@@ -1,12 +1,27 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Eye, EyeOff } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../auth/AuthContext";
 import "./Login.css";
 
 function Login() {
+    const navigate = useNavigate();
+    const { checkAuth } = useAuth();
     const [showPassword, setShowPassword] = useState(false);
     const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
     const [formData, setFormData] = useState({ email: "", password: "" });
+    const [remainingTime, setRemainingTime] = useState(0);
+
+    useEffect(() => {
+    if (remainingTime <= 0) return;
+
+    const timer = setInterval(() => {
+        setRemainingTime(prev => Math.max(0, prev - 1));
+    }, 1000);
+
+    return () => clearInterval(timer);
+}, [remainingTime]);
 
     function handleChange(event: React.ChangeEvent<HTMLInputElement>) {
     const { name, value } = event.target;
@@ -14,21 +29,51 @@ function Login() {
     setFormData(prev => ({...prev, [name]: value }));
 }
 
+    
     function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
         event.preventDefault();
-        fetch('http://localhost:8002/api/v1/auth/login',{
-            method:'POST',
+
+        fetch('http://localhost:8002/api/v1/auth/login', {
+            method: 'POST',
             credentials: 'include',
-            headers: {'Content-Type' : 'application/json'},
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(formData),
         })
             .then(async response => {
-                if (response.ok) return setMessage({ text: 'Login successful', error: false });
+                if (response.ok) {
+                    setMessage({ text: 'Login successful', error: false });
+                    await checkAuth();
+                    navigate('/dashboard');
+                    return;
+                }
+
                 const body = await response.json().catch(() => null);
-                setMessage({ text: body?.message ?? 'Failed to login', error: true });
+
+                if (response.status === 429) {
+                    const match = body?.message?.match(/(\d+)\s*seconds?/i);
+
+                    const v = match ? parseInt(match[1], 10) : 0;
+
+                    setRemainingTime(v);
+
+                    setMessage({
+                        text: 'Too many failed login attempts',
+                        error: true
+                    });
+
+                    return;
+                }
+
+                setMessage({
+                    text: body?.message ?? 'Failed to login',
+                    error: true
+                });
             })
-            .catch(() => setMessage({ text: 'Cannot reach server', error: true }));
+            .catch(() => {
+                setMessage({ text: 'Cannot reach server', error: true });
+            });
     }
+
 
     return (
         <div className="login-page">
@@ -84,11 +129,10 @@ function Login() {
                                 )}
                             </button>
 
-                            <button
-                                type="submit"
-                                className="login-button"
-                            >
-                                Log in
+                            <button type="submit" disabled={remainingTime > 0} className={ remainingTime > 0 ? "login-button-disabled" : "login-button" }>
+                                {remainingTime > 0
+                                    ? `Try again in ${remainingTime}s`
+                                    : 'Login'}
                             </button>
                         </div>
                         {message && (

@@ -1,8 +1,12 @@
-function Dashboard() {
-  return (
-    <div>
-      Dashboard
-    </div>
-  )
+import InnerDashboard from "./InnerDashboard";
+function Dashboard(){
+
+
+    return(
+        <div>
+            <InnerDashboard/>
+        </div>
+    )
+
 }
-export default Dashboard
+export default Dashboard;

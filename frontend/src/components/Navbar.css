@@ -1,15 +1,38 @@
 
+/* Główny Navbar */
+
 .navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1000;
+
   width: 240px;
   height: 100vh;
+  height: 100dvh;
+
   padding: 24px 16px;
+  box-sizing: border-box;
+
   background: #f8f9fa;
   border-right: 1px solid #c5c6ce4d;
+
   display: flex;
   flex-direction: column;
-  flex-shrink: 0;
+
   font-family: Inter, sans-serif;
+
+  overflow-y: auto;
+  transition: transform 0.3s ease;
 }
+
+/* Górny pasek */
+
+.navbar-header {
+  display: none;
+}
+
+/* Linki */
 
 .navbar-links {
   display: flex;
@@ -21,13 +44,18 @@
   display: flex;
   align-items: center;
   gap: 12px;
+
   padding: 10px 12px;
+
   border-left: 4px solid transparent;
   border-radius: 8px;
+
   text-decoration: none;
   color: #44474d;
+
   font-size: 14px;
   font-weight: 500;
+
   transition: 0.2s;
 }
 
@@ -42,6 +70,8 @@
   font-weight: 800;
 }
 
+/* Profil */
+
 .navbar-profile {
   margin-top: auto;
   padding-top: 20px;
@@ -52,18 +82,24 @@
   display: flex;
   align-items: center;
   gap: 12px;
+
   text-decoration: none;
+  min-width: 0;
 }
 
 .profile-avatar {
   width: 36px;
   height: 36px;
+  flex-shrink: 0;
+
   border-radius: 10px;
   background: #e1e3e4;
   color: #031632;
+
   display: flex;
   align-items: center;
   justify-content: center;
+
   font-size: 12px;
   font-weight: 800;
 }
@@ -74,14 +110,139 @@
   min-width: 0;
 }
 
-.profile-info span {
+.profile-info p {
+  margin: 0;
   color: #031632;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
 }
 
-.profile-info small {
+.profile-info span {
   color: #858b94;
   font-size: 10px;
   letter-spacing: 0.08em;
+}
+
+/* Przycisk hamburger */
+
+.navbar-toggle {
+  display: none;
+
+  position: fixed;
+  top: 14px;
+  left: 14px;
+  z-index: 1100;
+
+  width: 42px;
+  height: 42px;
+
+  border: 1px solid #c5c6ce4d;
+  border-radius: 10px;
+
+  background: #f8f9fa;
+  color: #031632;
+
+  font-size: 22px;
+  cursor: pointer;
+
+  align-items: center;
+  justify-content: center;
+}
+
+/* Przycisk zamykania */
+
+.navbar-close {
+  display: none;
+}
+
+/* Przyciemnione tło */
+
+.navbar-overlay {
+  display: none;
+}
+
+/* Tablet i telefon */
+
+@media (max-width: 900px) {
+
+  .navbar {
+    width: 240px;
+    max-width: 85vw;
+
+    transform: translateX(-100%);
+    box-shadow: none;
+
+    padding: 16px;
+  }
+
+  .navbar.open {
+    transform: translateX(0);
+    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.12);
+  }
+
+  /* Górny pasek z X */
+
+  .navbar-header {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+
+    width: 100%;
+    min-height: 42px;
+
+    margin-bottom: 16px;
+    flex-shrink: 0;
+  }
+
+  .navbar-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 36px;
+    height: 36px;
+
+    border: none;
+    border-radius: 8px;
+
+    background: #e1e3e4;
+    color: #031632;
+
+    font-size: 20px;
+    cursor: pointer;
+  }
+
+  .navbar-close:hover {
+    background: #d5d8dc;
+  }
+
+  /* Hamburger zawsze po lewej */
+
+  .navbar-toggle {
+    display: flex;
+    left: 14px;
+    top: 14px;
+  }
+
+  /* Overlay */
+
+  .navbar-overlay {
+    display: block;
+
+    position: fixed;
+    inset: 0;
+
+    z-index: 900;
+
+    background: rgba(0, 0, 0, 0.35);
+  }
+}
+
+/* Małe telefony */
+
+@media (max-width: 400px) {
+  .navbar {
+    width: 270px;
+    max-width: 85vw;
+  }
 }
