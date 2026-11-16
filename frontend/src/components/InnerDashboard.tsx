@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import MachineCard from "./MachineCard";
 import type { Machine } from "../types/Machine";
+import { API_URL } from "../config";
 
 function InnerDashboard(){
     const [machines, setMachines] = useState<Machine[]>([])
@@ -10,7 +11,7 @@ function InnerDashboard(){
         async function fetchUsers() {
             try {
                 const response = await fetch(
-                    'http://localhost:8002/api/v1/machines',
+                    `${API_URL}/api/v1/machines`,
                     {
                         method: 'GET',
                         credentials: 'include'

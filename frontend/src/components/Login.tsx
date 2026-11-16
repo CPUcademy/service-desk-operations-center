@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
+import { API_URL } from "../config";
 import "./Login.css";
 
 function Login() {
@@ -33,7 +34,7 @@ function Login() {
     function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
         event.preventDefault();
 
-        fetch('http://localhost:8002/api/v1/auth/login', {
+        fetch(`${API_URL}/api/v1/auth/login`, {
             method: 'POST',
             credentials: 'include',
             headers: { 'Content-Type': 'application/json' },

@@ -5,6 +5,7 @@ import {
     useState,
     type ReactNode
 } from 'react';
+import { API_URL } from '../config';
 
 interface AuthContextType {
     isAuthenticated: boolean;
@@ -23,7 +24,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
             // Use an existing protected endpoint
             const response = await fetch(
-                'http://localhost:8002/api/v1/machines',
+                `${API_URL}/api/v1/machines`,
                 {
                     credentials: 'include'
                 }
