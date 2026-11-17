@@ -22,7 +22,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     async function checkAuth(): Promise<boolean> {
         try {
-            // Use an existing protected endpoint
             const response = await fetch(
                 `${API_URL}/api/v1/machines`,
                 {
