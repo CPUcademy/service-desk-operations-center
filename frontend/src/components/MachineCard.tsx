@@ -22,7 +22,8 @@ function MachineCard({ machine }: MachineCardProps) {
             <header className="machine-card-header">
                 <div className="machine-card-heading">
                     <span className="machine-card-id">Machine #{machine.id}</span>
-                    <h2>{machine.type}</h2>
+                    <h2>{machine.hostname}</h2>
+                    <span className="machine-card-type">{machine.type}</span>
                 </div>
                 <span className={`machine-status ${statusClass}`}>
                     <span className="machine-status-dot" aria-hidden="true" />
@@ -30,24 +31,9 @@ function MachineCard({ machine }: MachineCardProps) {
                 </span>
             </header>
 
-            <dl className="machine-details">
-                <div>
-                    <dt>Hostname</dt>
-                    <dd>{machine.hostname}</dd>
-                </div>
-                <div>
-                    <dt>IP address</dt>
-                    <dd>{machine.ipAddress}</dd>
-                </div>
-                <div>
-                    <dt>Department</dt>
-                    <dd>{machine.department}</dd>
-                </div>
-            </dl>
-
             <section className="machine-metrics" aria-label="Machine metrics">
                 <div className="machine-metrics-heading">
-                    <h3>Live metrics</h3>
+                    <h3>Machine statistics</h3>
                     {metrics && <span>Updated {new Date(metrics.reportedAt).toLocaleTimeString()}</span>}
                 </div>
                 {metrics ? (
@@ -81,14 +67,9 @@ function MachineCard({ machine }: MachineCardProps) {
                         </div>
                     </div>
                 ) : (
-                    <p className="machine-metrics-empty">Waiting for the worker’s first report.</p>
+                    <p className="machine-metrics-empty">No worker metrics received yet.</p>
                 )}
             </section>
-
-            <footer className="machine-card-footer">
-                <span>{machine.type} · {machine.department}</span>
-                <button type="button" className="machine-attend-button">Attend</button>
-            </footer>
         </article>
     );
 }

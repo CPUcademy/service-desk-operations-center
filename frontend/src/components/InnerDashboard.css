@@ -59,3 +59,10 @@
 .dashboard-stat-error .dashboard-stat-label {
   color: #b42318;
 }
+
+.machine-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
+  gap: 16px;
+  margin-top: 20px;
+}

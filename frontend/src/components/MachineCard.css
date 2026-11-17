@@ -11,8 +11,7 @@
 
 .machine-card-header,
 .machine-card-heading,
-.machine-metrics-heading,
-.machine-card-footer {
+.machine-metrics-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -38,6 +37,13 @@
   font-size: 19px;
   font-weight: 750;
   letter-spacing: -0.3px;
+}
+
+.machine-card-type {
+  display: inline-block;
+  margin-top: 4px;
+  color: #778397;
+  font-size: 11px;
 }
 
 .machine-status {
@@ -74,33 +80,8 @@
   color: #647084;
 }
 
-.machine-details {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-  margin: 20px 0;
-  padding: 15px 0;
-  border-top: 1px solid #edf0f4;
-  border-bottom: 1px solid #edf0f4;
-}
-
-.machine-details div {
-  min-width: 0;
-}
-
-.machine-details dt {
-  margin-bottom: 6px;
-  font-size: 10px;
-}
-
-.machine-details dd {
-  overflow: hidden;
-  margin: 0;
-  color: #26364d;
-  font-size: 12px;
-  font-weight: 600;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.machine-metrics {
+  margin-top: 18px;
 }
 
 .machine-metrics-heading {
@@ -190,37 +171,9 @@
   text-align: center;
 }
 
-.machine-card-footer {
-  gap: 12px;
-  margin-top: 18px;
-  color: #8993a2;
-  font-size: 10px;
-}
-
-.machine-attend-button {
-  padding: 8px 13px;
-  background: #031632;
-  border: 0;
-  border-radius: 8px;
-  color: #fff;
-  font: inherit;
-  font-size: 11px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background 0.2s ease;
-}
-
-.machine-attend-button:hover {
-  background: #1a3b6b;
-}
-
 @media (max-width: 520px) {
   .machine-card {
     padding: 17px;
-  }
-
-  .machine-details {
-    gap: 8px;
   }
 
   .metric-grid {

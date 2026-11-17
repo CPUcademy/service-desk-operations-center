@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import MachineCard from "./MachineCard";
 import type { Machine } from "../types/Machine";
 import { API_URL } from "../config";
 import "./InnerDashboard.css";
@@ -123,6 +124,11 @@ function InnerDashboard() {
                         <span className="dashboard-stat-detail">{error} · retrying</span>
                     </article>
                 )}
+            </section>
+            <section className="machine-stat-grid" aria-label="Statistics for each machine">
+                {machines.map(machine => (
+                    <MachineCard key={machine.id} machine={machine} />
+                ))}
             </section>
         </main>
     );
