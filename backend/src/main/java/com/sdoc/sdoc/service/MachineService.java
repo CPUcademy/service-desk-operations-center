@@ -32,8 +32,10 @@ public class MachineService {
     public void saveMetrics(Long machineId, MachineMetricsDto dto) {
         if (dto == null || isNotPercent(dto.cpuUsage()) || isNotFinite(dto.ramUsed()) || isNotFinite(dto.ramTotal())
                 || dto.ramUsed() < 0 || dto.ramTotal() <= 0 || dto.ramUsed() > dto.ramTotal()
-                || dto.latencyMs() == null || !Double.isFinite(dto.latencyMs()) || dto.latencyMs() < 0)
+                || (dto.latencyMs() != null && (!Double.isFinite(dto.latencyMs()) || dto.latencyMs() < 0)))
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid metrics");
+        if (!machineRepository.existsById(machineId))
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Machine not found");
         metrics.put(machineId, new MachineMetricsDto(dto.cpuUsage(), dto.ramUsed(), dto.ramTotal(),
                 dto.latencyMs(), Instant.now()));
     }

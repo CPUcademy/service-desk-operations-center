@@ -2,13 +2,17 @@ import { useEffect, useState } from "react";
 import MachineCard from "./MachineCard";
 import type { Machine } from "../types/Machine";
 import { API_URL } from "../config";
+import "./InnerDashboard.css";
 
-function InnerDashboard(){
-    const [machines, setMachines] = useState<Machine[]>([])
+function InnerDashboard() {
+    const [machines, setMachines] = useState<Machine[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-     useEffect(() => {
-        async function fetchUsers() {
+    useEffect(() => {
+        let active = true;
+        let timeoutId: number;
+
+        async function fetchMachines() {
             try {
                 const response = await fetch(
                     `${API_URL}/api/v1/machines`,
@@ -19,33 +23,106 @@ function InnerDashboard(){
                 );
 
                 if (!response.ok) {
-                    throw new Error('Failed to fetch users');
+                    throw new Error('Failed to fetch machines');
                 }
 
                 const data: Machine[] = await response.json();
 
-                setMachines(data);
-                console.log(machines);
+                if (active) {
+                    setMachines(data);
+                    setError(null);
+                }
             } catch (err) {
-                setError(
-                    err instanceof Error ? err.message : 'Unknown error'
-                );
+                if (active) {
+                    setError(err instanceof Error ? err.message : 'Unknown error');
+                }
             } finally {
-                setLoading(false);
+                if (active) {
+                    setLoading(false);
+                    timeoutId = window.setTimeout(() => void fetchMachines(), 5000);
+                }
             }
         }
 
-        fetchUsers();
+        void fetchMachines();
+        return () => {
+            active = false;
+            window.clearTimeout(timeoutId);
+        };
     }, []);
 
-    if (loading) return <p>Loading...</p>;
-    if (error) return <p>{error}</p>;
+    const reportingMetrics = machines.flatMap(machine =>
+        machine.metrics ? [machine.metrics] : []
+    );
+    const onlineCount = machines.filter(machine =>
+        ["online", "active", "available"].includes(machine.status.toLowerCase())
+    ).length;
+    const averageCpu = reportingMetrics.length
+        ? reportingMetrics.reduce((sum, metrics) => sum + metrics.cpuUsage, 0) / reportingMetrics.length
+        : null;
+    const latencies = reportingMetrics.flatMap(metrics =>
+        metrics.latencyMs === null ? [] : [metrics.latencyMs]
+    );
+    const averageLatency = latencies.length
+        ? latencies.reduce((sum, latency) => sum + latency, 0) / latencies.length
+        : null;
+    const ramUsed = reportingMetrics.reduce((sum, metrics) => sum + metrics.ramUsed, 0);
+    const ramTotal = reportingMetrics.reduce((sum, metrics) => sum + metrics.ramTotal, 0);
+    const dashboardStats = [
+        {
+            label: "Machines online",
+            value: loading ? "…" : `${onlineCount} / ${machines.length}`,
+            detail: loading
+                ? "Loading data"
+                : `${machines.length - onlineCount} offline`,
+        },
+        {
+            label: "Average CPU",
+            value: loading ? "…" : averageCpu === null ? "—" : `${averageCpu.toFixed(1)}%`,
+            detail: loading ? "Loading data" : "Across reporting machines",
+        },
+        {
+            label: "Memory in use",
+            value: loading ? "…" : ramTotal ? `${(ramUsed / 1024).toFixed(1)} GB` : "—",
+            detail: loading
+                ? "Loading data"
+                : ramTotal
+                    ? `of ${(ramTotal / 1024).toFixed(1)} GB total (${((ramUsed / ramTotal) * 100).toFixed(0)}%)`
+                    : "No reports yet",
+        },
+        {
+            label: "Average latency",
+            value: loading ? "…" : averageLatency === null ? "—" : `${averageLatency.toFixed(0)} ms`,
+            detail: loading
+                ? "Loading data"
+                : `${latencies.length} responding ${latencies.length === 1 ? "machine" : "machines"}`,
+        },
+    ];
 
-    console.log("bajo");
-    return(
-        <div>
-            {machines.map(m => <MachineCard key={m.id} machine={m}/>)}
-        </div>
+    return (
+        <main className="machine-dashboard">
+            <section className="dashboard-stats" aria-label="Fleet statistics">
+                {dashboardStats.map(stat => (
+                    <article className="dashboard-stat" key={stat.label}>
+                        <span className="dashboard-stat-label">{stat.label}</span>
+                        <strong>{stat.value}</strong>
+                        <span className="dashboard-stat-detail">{stat.detail}</span>
+                    </article>
+                ))}
+                {error && (
+                    <article className="dashboard-stat dashboard-stat-error" role="alert">
+                        <span className="dashboard-stat-label">Data connection</span>
+                        <strong>Error</strong>
+                        <span className="dashboard-stat-detail">{error} · retrying</span>
+                    </article>
+                )}
+            </section>
+            <section className="machine-stat-grid" aria-label="Statistics for each machine">
+                {machines.map(machine => (
+                    <MachineCard key={machine.id} machine={machine} />
+                ))}
+            </section>
+        </main>
     );
 }
 export default InnerDashboard;
