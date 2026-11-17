@@ -30,13 +30,19 @@ public class MachineService {
     }
 
     public void saveMetrics(Long machineId, MachineMetricsDto dto) {
-        if (dto == null || isNotPercent(dto.cpuUsage()) || isNotPercent(dto.ramUsage())
+        if (dto == null || isNotPercent(dto.cpuUsage()) || isNotFinite(dto.ramUsed()) || isNotFinite(dto.ramTotal())
+                || dto.ramUsed() < 0 || dto.ramTotal() <= 0 || dto.ramUsed() > dto.ramTotal()
                 || dto.latencyMs() == null || !Double.isFinite(dto.latencyMs()) || dto.latencyMs() < 0)
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid metrics");
-        metrics.put(machineId, new MachineMetricsDto(dto.cpuUsage(), dto.ramUsage(), dto.latencyMs(), Instant.now()));
+        metrics.put(machineId, new MachineMetricsDto(dto.cpuUsage(), dto.ramUsed(), dto.ramTotal(),
+                dto.latencyMs(), Instant.now()));
     }
 
     private static boolean isNotPercent(Double value) {
         return value == null || value < 0 || value > 100;
+    }
+
+    private static boolean isNotFinite(Double value) {
+        return value == null || !Double.isFinite(value);
     }
 }
