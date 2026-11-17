@@ -21,7 +21,7 @@ namespace sdoc
             bool isWindows = OperatingSystem.IsWindows();
             logger.LogInformation("Operating system is Windows: {Windows}", isWindows);
 
-            String commandType = "GetSystemInfo";
+            string commandType = "GetSystemInfo";
             
             if (commandType == "GetSystemInfo") {
                 logger.LogInformation("Executing command: {command}", commandType);
@@ -30,21 +30,28 @@ namespace sdoc
             string? apiKey = Environment.GetEnvironmentVariable("WORKER_API_KEY");
             if (string.IsNullOrEmpty(apiKey))
             {
-                logger.LogError("Missing WORKER_API_KEY - the server will reject the data");
+                throw new InvalidOperationException("WORKER_API_KEY must be configured before the worker can send metrics.");
             }
+            if (!Uri.TryCreate(configuration["Agent:ServerUrl"], UriKind.Absolute, out Uri? serverUri))
+            {
+                throw new InvalidOperationException("Agent:ServerUrl must be configured as an absolute URL.");
+            }
+            int machineId = configuration.GetValue<int>("Agent:MachineId");
+            if (machineId <= 0)
+            {
+                throw new InvalidOperationException("Agent:MachineId must be a positive ID matching a registered machine.");
+            }
+
             http.DefaultRequestHeaders.Add("X-Worker-Key", apiKey);
 
             while (!stoppingToken.IsCancellationRequested)
             {
                 heartbeatCount++;
-                if (logger.IsEnabled(LogLevel.Information))
-                {
-                    logger.LogInformation("Heartbeat {count} at {time}" ,heartbeatCount, DateTimeOffset.Now);
+                logger.LogInformation("Heartbeat {count} at {time}", heartbeatCount, DateTimeOffset.Now);
 
-                    Metrics metrics = CollectMetrics();
-                    logger.LogInformation("CPU: {cpu}%, RAM: {used} / {total} MB, Latency: {ms} ms", metrics.CpuUsage, metrics.RamUsed, metrics.RamTotal, metrics.LatencyMs);
-                    await SendMetricsAsync(metrics, stoppingToken);
-                }
+                Metrics metrics = CollectMetrics();
+                logger.LogInformation("CPU: {cpu}%, RAM: {used} / {total} MB, Latency: {ms} ms", metrics.CpuUsage, metrics.RamUsed, metrics.RamTotal, metrics.LatencyMs);
+                await SendMetricsAsync(serverUri, machineId, metrics, stoppingToken);
 
                 await Task.Delay(5000, stoppingToken);
             }
@@ -65,17 +72,22 @@ namespace sdoc
             return new Metrics(cpu, ram.Used, ram.Total, latency);
         }
 
-        private async Task SendMetricsAsync(Metrics metrics, CancellationToken stoppingToken)
+        private async Task SendMetricsAsync(Uri serverUri, int machineId, Metrics metrics, CancellationToken stoppingToken)
         {
-            string? serverUrl = configuration["Agent:ServerUrl"];
-            int machineId = configuration.GetValue<int>("Agent:MachineId");
-            string url = $"{serverUrl}/api/v1/internal/machines/{machineId}/metrics";
+            string url = $"{serverUri.ToString().TrimEnd('/')}/api/v1/internal/machines/{machineId}/metrics";
 
             try
             {
                 HttpResponseMessage response = await http.PostAsJsonAsync(url, metrics, stoppingToken);
                 string body = await response.Content.ReadAsStringAsync(stoppingToken);
-                logger.LogInformation("Server answered: {status} {body}", (int)response.StatusCode, body);
+                if (response.IsSuccessStatusCode)
+                {
+                    logger.LogInformation("Server accepted metrics: {status}", (int)response.StatusCode);
+                }
+                else
+                {
+                    logger.LogError("Server rejected metrics: {status} {body}", (int)response.StatusCode, body);
+                }
             }
             catch (HttpRequestException ex)
             {

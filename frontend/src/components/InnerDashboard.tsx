@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import MachineCard from "./MachineCard";
 import type { Machine } from "../types/Machine";
 import { API_URL } from "../config";
 import "./InnerDashboard.css";
@@ -71,54 +70,44 @@ function InnerDashboard() {
     const dashboardStats = [
         {
             label: "Total machines",
-            value: String(machines.length),
-            detail: "Registered devices",
+            value: loading ? "…" : String(machines.length),
+            detail: loading ? "Loading data" : "Registered devices",
         },
         {
             label: "Online",
-            value: String(onlineCount),
-            detail: "Available machines",
+            value: loading ? "…" : String(onlineCount),
+            detail: loading ? "Loading data" : "Available machines",
         },
         {
             label: "Reporting",
-            value: `${reportingMetrics.length} / ${machines.length}`,
-            detail: "Sending metrics",
+            value: loading ? "…" : `${reportingMetrics.length} / ${machines.length}`,
+            detail: loading ? "Loading data" : "Sending metrics",
         },
         {
             label: "Average CPU",
-            value: averageCpu === null ? "—" : `${averageCpu.toFixed(1)}%`,
-            detail: "Across reporting machines",
+            value: loading ? "…" : averageCpu === null ? "—" : `${averageCpu.toFixed(1)}%`,
+            detail: loading ? "Loading data" : "Across reporting machines",
         },
         {
             label: "Memory in use",
-            value: ramTotal ? `${(ramUsed / 1024).toFixed(1)} GB` : "—",
-            detail: ramTotal ? `of ${(ramTotal / 1024).toFixed(1)} GB total` : "No reports yet",
+            value: loading ? "…" : ramTotal ? `${(ramUsed / 1024).toFixed(1)} GB` : "—",
+            detail: loading
+                ? "Loading data"
+                : ramTotal
+                    ? `of ${(ramTotal / 1024).toFixed(1)} GB total`
+                    : "No reports yet",
         },
         {
             label: "Average latency",
-            value: averageLatency === null ? "—" : `${averageLatency.toFixed(0)} ms`,
-            detail: `${latencies.length} responding ${latencies.length === 1 ? "machine" : "machines"}`,
+            value: loading ? "…" : averageLatency === null ? "—" : `${averageLatency.toFixed(0)} ms`,
+            detail: loading
+                ? "Loading data"
+                : `${latencies.length} responding ${latencies.length === 1 ? "machine" : "machines"}`,
         },
     ];
 
-    if (loading) {
-        return <p className="dashboard-message">Loading machines...</p>;
-    }
-
-    if (error && machines.length === 0) {
-        return <p className="dashboard-message dashboard-error" role="alert">{error}</p>;
-    }
-
     return (
         <main className="machine-dashboard">
-            <header className="machine-dashboard-header">
-                <div>
-                    <p className="dashboard-eyebrow">Operations center</p>
-                    <h1>Machine dashboard</h1>
-                    <p className="dashboard-subtitle">Monitor device status and live system health.</p>
-                </div>
-            </header>
-            {error && <p className="dashboard-error" role="alert">{error} — retrying…</p>}
             <section className="dashboard-stats" aria-label="Fleet statistics">
                 {dashboardStats.map(stat => (
                     <article className="dashboard-stat" key={stat.label}>
@@ -127,17 +116,14 @@ function InnerDashboard() {
                         <span className="dashboard-stat-detail">{stat.detail}</span>
                     </article>
                 ))}
+                {error && (
+                    <article className="dashboard-stat dashboard-stat-error" role="alert">
+                        <span className="dashboard-stat-label">Data connection</span>
+                        <strong>Error</strong>
+                        <span className="dashboard-stat-detail">{error} · retrying</span>
+                    </article>
+                )}
             </section>
-            {machines.length > 0 ? (
-                <section className="machine-grid" aria-label="Machines">
-                    {machines.map(machine => <MachineCard key={machine.id} machine={machine} />)}
-                </section>
-            ) : (
-                <section className="dashboard-empty">
-                    <h2>No machines registered</h2>
-                    <p>Machines will appear here once they have been added to the service desk.</p>
-                </section>
-            )}
         </main>
     );
 }
