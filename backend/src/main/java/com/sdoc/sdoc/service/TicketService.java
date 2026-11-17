@@ -6,6 +6,7 @@ import com.sdoc.sdoc.persistance.entity.User;
 import com.sdoc.sdoc.persistance.entity.Machine;
 import com.sdoc.sdoc.persistance.repository.TicketRepository;
 import com.sdoc.sdoc.persistance.repository.UserRepository;
+import com.sdoc.sdoc.service.validation.InputValidationService;
 import com.sdoc.sdoc.persistance.repository.MachineRepository;
 import com.sdoc.sdoc.api.dto.CreateTicketRequestDto;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +24,7 @@ public class TicketService {
     private final TicketRepository ticketRepository;
     private final UserRepository userRepository;
     private final MachineRepository machineRepository;
+    private final InputValidationService inputValidationService;
 
     @Transactional(readOnly = true)
     public List<TicketDto> getAll() {
@@ -47,6 +49,13 @@ public class TicketService {
 
     @Transactional
     public TicketDto createTicket(CreateTicketRequestDto ticketFromFrontend, long userId) {
+        String error = inputValidationService.validateMachineId(ticketFromFrontend.machineId());
+        if (error != null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, error);
+        error = inputValidationService.validateTicketDescription(ticketFromFrontend.description());
+        if (error != null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, error);
+        error = inputValidationService.validatePriority(ticketFromFrontend.priority());
+        if (error != null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, error);
+
         Machine machine = machineRepository.findById(ticketFromFrontend.machineId()).orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Machine not found"));
         User user = userRepository.findById(userId).orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Error! Please sign in again."));
 

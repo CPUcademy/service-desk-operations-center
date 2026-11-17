@@ -47,4 +47,28 @@ public class InputValidationService {
             return "Password must contain at least one special character";
         return null;
     }
+
+    public String validateMachineId (Long machineId) {
+        if (machineId == null)
+            return "MachineId is required";
+        if (machineId < 1)
+            return "Invalid MachineId";
+        return null;
+    }
+
+    public String validateTicketDescription (String description) {
+        if (description == null || description.trim().isEmpty())
+            return "Description is required";
+        if (description.length() > 255)
+            return "Description must not exceed 255 characters";
+        return null;
+    }
+
+    public String validatePriority (Integer priority) {
+        if (priority == null)
+            return "Priority is required";
+        if (priority < 1 || priority > 3)
+            return "Priority must be 1, 2 or 3";
+        return null;
+    }
 }
