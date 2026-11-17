@@ -60,7 +60,7 @@ namespace sdoc
         {
             float cpu = GetCpuUsage();
             RamInfo ram = GetRamInfo();
-            long latency = GetLatencyMs();
+            long? latency = GetLatencyMs();
 
             return new Metrics(cpu, ram.Used, ram.Total, latency);
         }
@@ -87,7 +87,7 @@ namespace sdoc
             }
         }
 
-        private long GetLatencyMs()
+        private long? GetLatencyMs()
         {
             Ping ping = new Ping();
             PingReply reply = ping.Send("8.8.8.8", 2000);
@@ -97,7 +97,7 @@ namespace sdoc
                 return reply.RoundtripTime;
             }
 
-            return -1;
+            return null;
         }
 
         private float GetCpuUsage()

@@ -8,7 +8,10 @@ function InnerDashboard(){
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
      useEffect(() => {
-        async function fetchUsers() {
+        let active = true;
+        let timeoutId: number;
+
+        async function fetchMachines() {
             try {
                 const response = await fetch(
                     `${API_URL}/api/v1/machines`,
@@ -19,31 +22,40 @@ function InnerDashboard(){
                 );
 
                 if (!response.ok) {
-                    throw new Error('Failed to fetch users');
+                    throw new Error('Failed to fetch machines');
                 }
 
                 const data: Machine[] = await response.json();
 
-                setMachines(data);
-                console.log(machines);
+                if (active) {
+                    setMachines(data);
+                    setError(null);
+                }
             } catch (err) {
-                setError(
-                    err instanceof Error ? err.message : 'Unknown error'
-                );
+                if (active) {
+                    setError(err instanceof Error ? err.message : 'Unknown error');
+                }
             } finally {
-                setLoading(false);
+                if (active) {
+                    setLoading(false);
+                    timeoutId = window.setTimeout(() => void fetchMachines(), 5000);
+                }
             }
         }
 
-        fetchUsers();
+        void fetchMachines();
+        return () => {
+            active = false;
+            window.clearTimeout(timeoutId);
+        };
     }, []);
 
     if (loading) return <p>Loading...</p>;
-    if (error) return <p>{error}</p>;
+    if (error && machines.length === 0) return <p>{error}</p>;
 
-    console.log("bajo");
     return(
         <div>
+            {error && <p role="alert">{error}</p>}
             {machines.map(m => <MachineCard key={m.id} machine={m}/>)}
         </div>
     );
