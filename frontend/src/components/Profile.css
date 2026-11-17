@@ -166,7 +166,6 @@
   min-width: 0;
 }
 
-/* Responsywność */
 @media (max-width: 700px) {
   .profile-readonly-fields {
     flex-direction: column;

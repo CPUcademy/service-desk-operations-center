@@ -1,6 +1,3 @@
-
-/* Główny Navbar */
-
 .navbar {
   position: fixed;
   top: 0;
@@ -26,13 +23,9 @@
   transition: transform 0.3s ease;
 }
 
-/* Górny pasek */
-
 .navbar-header {
   display: none;
 }
-
-/* Linki */
 
 .navbar-links {
   display: flex;
@@ -69,8 +62,6 @@
   color: #031632;
   font-weight: 800;
 }
-
-/* Profil */
 
 .navbar-profile {
   margin-top: auto;
@@ -123,8 +114,6 @@
   letter-spacing: 0.08em;
 }
 
-/* Przycisk hamburger */
-
 .navbar-toggle {
   display: none;
 
@@ -149,19 +138,14 @@
   justify-content: center;
 }
 
-/* Przycisk zamykania */
 
 .navbar-close {
   display: none;
 }
 
-/* Przyciemnione tło */
-
 .navbar-overlay {
   display: none;
 }
-
-/* Tablet i telefon */
 
 @media (max-width: 900px) {
 
@@ -179,8 +163,6 @@
     transform: translateX(0);
     box-shadow: 4px 0 20px rgba(0, 0, 0, 0.12);
   }
-
-  /* Górny pasek z X */
 
   .navbar-header {
     display: flex;
@@ -216,16 +198,12 @@
     background: #d5d8dc;
   }
 
-  /* Hamburger zawsze po lewej */
-
   .navbar-toggle {
     display: flex;
     left: 14px;
     top: 14px;
   }
-
-  /* Overlay */
-
+W
   .navbar-overlay {
     display: block;
 
@@ -237,8 +215,6 @@
     background: rgba(0, 0, 0, 0.35);
   }
 }
-
-/* Małe telefony */
 
 @media (max-width: 400px) {
   .navbar {
