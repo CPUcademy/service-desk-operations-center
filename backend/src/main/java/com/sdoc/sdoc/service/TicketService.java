@@ -39,7 +39,7 @@ public class TicketService {
     }
 
     public List<TicketDto> getUserTickets(long userId){
-        return ticketRepository.findById(userId).stream().map(this::convertToDTO).toList();
+        return ticketRepository.findByUserId(userId).stream().map(this::convertToDTO).toList();
     }
 
     public TicketDto createTicket(CreateTicketRequestDto ticketFromFrontend, long userId) {
