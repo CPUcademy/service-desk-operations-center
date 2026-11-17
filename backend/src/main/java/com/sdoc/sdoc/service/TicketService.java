@@ -41,7 +41,7 @@ public class TicketService {
     }
 
     @Transactional(readOnly = true)
-    public List<TicketDto> getUserTickets(long userId){
+    public List<TicketDto> getUserTickets(long userId) {
         return ticketRepository.findByUserId(userId).stream().map(this::convertToDTO).toList();
     }
 
