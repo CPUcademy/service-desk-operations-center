@@ -27,6 +27,9 @@ public class Ticket {
     @Column(name = "\"description\"")
     private String description;
 
+    // 1 - Critical
+    // 2 - High
+    // 3 - Medium
     @Column(name = "\"priority\"")
     private int priority;
 
