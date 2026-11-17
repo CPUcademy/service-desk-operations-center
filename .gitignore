@@ -1,3 +1,4 @@
 .vs/
 desktop/**/bin/
 desktop/**/obj/
+publish/

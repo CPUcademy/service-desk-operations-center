@@ -13,6 +13,10 @@
   min-width: 0;
 }
 
+.main-content > * {
+  animation: fade-up 0.3s ease both;
+}
+
 .main-content:has(.chat-page) {
   padding: 0;
   height: 100dvh;

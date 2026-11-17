@@ -8,6 +8,8 @@
   border-radius: 16px;
   box-shadow: 0 4px 16px rgba(3, 22, 50, 0.04);
   color: #031632;
+  animation: fade-up 0.35s ease both;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
   font-family: Inter, sans-serif;
 }
 
@@ -200,4 +202,9 @@
   .metric-grid {
     grid-template-columns: 1fr;
   }
+}
+
+.machine-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgba(3, 22, 50, 0.08);
 }

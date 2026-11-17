@@ -1,10 +1,12 @@
 import { useState, type SubmitEvent  } from "react";
+import { useAuth } from "../auth/AuthContext";
 import "./Profile.css";
 
 function Profile() {
-  const [fullName, setFullName] = useState("Aleksander Szostak");
-  const [email] = useState("aleksander@tm1.edu.pl");
-  const [role] = useState("Administrator");
+  const { user } = useAuth();
+  const [fullName, setFullName] = useState(user?.fullName ?? "");
+  const email = user?.email ?? "";
+  const role = user?.isAdmin ? "Administrator" : "User";
 
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");

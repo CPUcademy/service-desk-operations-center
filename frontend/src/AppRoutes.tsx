@@ -38,11 +38,14 @@ export default function AppRoutes() {
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
 
-          <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/chat" element={<Chat />} />
           <Route path="/tickets" element={<Tickets />} />
-          <Route path="/admin" element={<Admin />} />
           <Route path="/profile" element={<Profile />} />
+
+          <Route element={<ProtectedRoute adminOnly />}>
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/admin" element={<Admin />} />
+          </Route>
 
         </Route>
       </Route>

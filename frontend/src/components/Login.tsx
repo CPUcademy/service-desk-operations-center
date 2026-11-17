@@ -13,6 +13,7 @@ function Login() {
     const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
     const [formData, setFormData] = useState({ email: "", password: "" });
     const [remainingTime, setRemainingTime] = useState(0);
+    const [submitting, setSubmitting] = useState(false);
 
     useEffect(() => {
     if (remainingTime <= 0) return;
@@ -33,6 +34,8 @@ function Login() {
     
     function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
         event.preventDefault();
+        setSubmitting(true);
+        setMessage(null);
 
         fetch(`${API_URL}/api/v1/auth/login`, {
             method: 'POST',
@@ -42,7 +45,6 @@ function Login() {
         })
             .then(async response => {
                 if (response.ok) {
-                    setMessage({ text: 'Login successful', error: false });
                     await checkAuth();
                     navigate('/dashboard');
                     return;
@@ -72,7 +74,8 @@ function Login() {
             })
             .catch(() => {
                 setMessage({ text: 'Cannot reach server', error: true });
-            });
+            })
+            .finally(() => setSubmitting(false));
     }
 
 
@@ -95,13 +98,16 @@ function Login() {
                     </h2>
 
                     <form onSubmit={handleSubmit} className="login-form">
-                        <label className="form-label">
+                        <label className="form-label" htmlFor="email">
                             EMAIL ADDRESS
                         </label>
 
                         <input
-                            type="text"
+                            id="email"
+                            type="email"
                             name="email"
+                            autoComplete="email"
+                            required
                             className="field-input"
                             onChange={handleChange}
                             placeholder="example@xyz.com"
@@ -112,6 +118,9 @@ function Login() {
                                 name="password"
                                 type={showPassword ? "text" : "password"}
                                 placeholder="Password"
+                                autoComplete="current-password"
+                                aria-label="Password"
+                                required
                                 onChange={handleChange}
                                 className="field-input"
                             />
@@ -119,6 +128,7 @@ function Login() {
                             <button
                                 type="button"
                                 className="password-toggle"
+                                aria-label="Hold to show password"
                                 onPointerDown={() => setShowPassword(true)}
                                 onPointerUp={() => setShowPassword(false)}
                                 onPointerLeave={() => setShowPassword(false)}
@@ -130,14 +140,15 @@ function Login() {
                                 )}
                             </button>
 
-                            <button type="submit" disabled={remainingTime > 0} className={ remainingTime > 0 ? "login-button-disabled" : "login-button" }>
+                            <button type="submit" disabled={remainingTime > 0 || submitting} className="login-button">
+                                {submitting && <span className="spinner spinner-small" aria-hidden="true" />}
                                 {remainingTime > 0
                                     ? `Try again in ${remainingTime}s`
-                                    : 'Login'}
+                                    : submitting ? 'Signing in…' : 'Login'}
                             </button>
                         </div>
                         {message && (
-                            <p role="alert" style={{ color: message.error ? '#d32f2f' : '#2e7d32' }}>
+                            <p role="alert" className="login-message">
                                 {message.text}
                             </p>
                         )}

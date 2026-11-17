@@ -71,24 +71,22 @@ function InnerDashboard() {
     const dashboardStats = [
         {
             label: "Machines online",
-            value: loading ? "…" : `${onlineCount} / ${machines.length}`,
+            value: `${onlineCount} / ${machines.length}`,
         },
         {
             label: "Average CPU",
-            value: loading ? "…" : averageCpu === null ? "—" : `${averageCpu.toFixed(1)}%`,
+            value: averageCpu === null ? "—" : `${averageCpu.toFixed(1)}%`,
         },
         {
             label: "Memory in use",
-            value: loading ? "…" : ramTotal ? `${(ramUsed / 1024).toFixed(1)} GB` : "—",
-            detail: loading
-                ? null
-                : ramTotal
+            value: ramTotal ? `${(ramUsed / 1024).toFixed(1)} GB` : "—",
+            detail: ramTotal
                     ? `of ${(ramTotal / 1024).toFixed(1)} GB total (${((ramUsed / ramTotal) * 100).toFixed(0)}%)`
                     : "No reports yet",
         },
         {
             label: "Average latency",
-            value: loading ? "…" : averageLatency === null ? "—" : `${averageLatency.toFixed(0)} ms`,
+            value: averageLatency === null ? "—" : `${averageLatency.toFixed(0)} ms`,
         },
     ];
 
@@ -98,8 +96,10 @@ function InnerDashboard() {
                 {dashboardStats.map(stat => (
                     <article className="dashboard-stat" key={stat.label}>
                         <span className="dashboard-stat-label">{stat.label}</span>
-                        <strong>{stat.value}</strong>
-                        {"detail" in stat && stat.detail && <span className="dashboard-stat-detail">{stat.detail}</span>}
+                        {loading
+                            ? <span className="skeleton dashboard-stat-skeleton" />
+                            : <strong>{stat.value}</strong>}
+                        {!loading && "detail" in stat && stat.detail && <span className="dashboard-stat-detail">{stat.detail}</span>}
                     </article>
                 ))}
                 {error && (
@@ -111,9 +111,14 @@ function InnerDashboard() {
                 )}
             </section>
             <section className="machine-stat-grid" aria-label="Statistics for each machine">
-                {machines.map(machine => (
-                    <MachineCard key={machine.id} machine={machine} />
-                ))}
+                {loading
+                    ? [0, 1, 2].map(i => <div key={i} className="skeleton machine-card-skeleton" />)
+                    : machines.map(machine => (
+                        <MachineCard key={machine.id} machine={machine} />
+                    ))}
+                {!loading && !error && machines.length === 0 && (
+                    <p className="machine-grid-empty">No machines registered yet.</p>
+                )}
             </section>
         </main>
     );

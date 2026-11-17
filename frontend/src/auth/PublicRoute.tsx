@@ -2,14 +2,14 @@ import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 
 export default function PublicRoute() {
-    const { isAuthenticated, loading } = useAuth();
+    const { user, loading } = useAuth();
 
     if (loading) {
-        return <div>Checking authentication...</div>;
+        return <div className="page-loader"><span className="spinner" /></div>;
     }
 
-    if (isAuthenticated) {
-        return <Navigate to="/dashboard" replace />;
+    if (user) {
+        return <Navigate to={user.isAdmin ? "/dashboard" : "/chat"} replace />;
     }
 
     return <Outlet />;

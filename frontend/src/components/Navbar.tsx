@@ -1,24 +1,22 @@
 
 import { NavLink } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useAuth } from "../auth/AuthContext";
 import "./Navbar.css";
 
 function Navbar() {
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [isAdmin, setIsAdmin] = useState(false);
+  const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
+  const fullName = user?.fullName ?? "";
+  const isAdmin = user?.isAdmin ?? false;
 
-  useEffect(() => {
-    // Tutaj się wstawi pobieranie danych z API
-    setFirstName("Aleksander");
-    setLastName("Szostak");
-    setIsAdmin(true);
-  }, []);
-
-  const initials = (
-    firstName.charAt(0) + lastName.charAt(0)
-  ).toUpperCase();
+  const initials = fullName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(part => part.charAt(0))
+    .join("")
+    .toUpperCase();
 
   const closeMenu = () => {
     setIsOpen(false);
@@ -128,7 +126,7 @@ function Navbar() {
 
             <div className="profile-info">
               <p>
-                {firstName} {lastName}
+                {fullName}
               </p>
 
               <span>

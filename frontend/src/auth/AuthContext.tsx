@@ -7,7 +7,15 @@ import {
 } from 'react';
 import { API_URL } from '../config';
 
+export interface User {
+    id: number;
+    fullName: string;
+    email: string;
+    isAdmin: boolean;
+}
+
 interface AuthContextType {
+    user: User | null;
     isAuthenticated: boolean;
     loading: boolean;
     checkAuth: () => Promise<boolean>;
@@ -17,28 +25,28 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
 
     async function checkAuth(): Promise<boolean> {
         try {
             const response = await fetch(
-                `${API_URL}/api/v1/machines`,
+                `${API_URL}/api/v1/users/me`,
                 {
                     credentials: 'include'
                 }
             );
 
             if (!response.ok) {
-                setIsAuthenticated(false);
+                setUser(null);
                 return false;
             }
 
-            setIsAuthenticated(true);
+            setUser(await response.json());
             return true;
 
         } catch {
-            setIsAuthenticated(false);
+            setUser(null);
             return false;
         } finally {
             setLoading(false);
@@ -46,7 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     function logout() {
-        setIsAuthenticated(false);
+        setUser(null);
     }
 
     useEffect(() => {
@@ -56,7 +64,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return (
         <AuthContext.Provider
             value={{
-                isAuthenticated,
+                user,
+                isAuthenticated: user !== null,
                 loading,
                 checkAuth,
                 logout
