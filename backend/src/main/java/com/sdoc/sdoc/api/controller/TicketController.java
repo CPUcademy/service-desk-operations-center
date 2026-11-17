@@ -2,6 +2,7 @@ package com.sdoc.sdoc.api.controller;
 
 import com.sdoc.sdoc.api.dto.CreateTicketRequestDto;
 import com.sdoc.sdoc.api.dto.TicketDto;
+import com.sdoc.sdoc.api.dto.TicketStatsDto;
 import com.sdoc.sdoc.security.utilities.SecurityUtils;
 import com.sdoc.sdoc.service.TicketService;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +35,13 @@ public class TicketController {
     public List<TicketDto> getUserTickets(Authentication authentication) {
         return ticketService.getUserTickets(SecurityUtils.getUserId(authentication));
     }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/stats")
+    public TicketStatsDto getTicketStatsForDashboard() {
+        return ticketService.getTicketStatsForDashboard();
+    }
+
 
     @PreAuthorize("hasRole('ADMIN')")
     @PatchMapping("/fixed/{id}")
