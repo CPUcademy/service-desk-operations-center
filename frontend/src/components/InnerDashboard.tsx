@@ -72,20 +72,16 @@ function InnerDashboard() {
         {
             label: "Machines online",
             value: loading ? "…" : `${onlineCount} / ${machines.length}`,
-            detail: loading
-                ? "Loading data"
-                : `${machines.length - onlineCount} offline`,
         },
         {
             label: "Average CPU",
             value: loading ? "…" : averageCpu === null ? "—" : `${averageCpu.toFixed(1)}%`,
-            detail: loading ? "Loading data" : "Across reporting machines",
         },
         {
             label: "Memory in use",
             value: loading ? "…" : ramTotal ? `${(ramUsed / 1024).toFixed(1)} GB` : "—",
             detail: loading
-                ? "Loading data"
+                ? null
                 : ramTotal
                     ? `of ${(ramTotal / 1024).toFixed(1)} GB total (${((ramUsed / ramTotal) * 100).toFixed(0)}%)`
                     : "No reports yet",
@@ -93,9 +89,6 @@ function InnerDashboard() {
         {
             label: "Average latency",
             value: loading ? "…" : averageLatency === null ? "—" : `${averageLatency.toFixed(0)} ms`,
-            detail: loading
-                ? "Loading data"
-                : `${latencies.length} responding ${latencies.length === 1 ? "machine" : "machines"}`,
         },
     ];
 
@@ -106,7 +99,7 @@ function InnerDashboard() {
                     <article className="dashboard-stat" key={stat.label}>
                         <span className="dashboard-stat-label">{stat.label}</span>
                         <strong>{stat.value}</strong>
-                        <span className="dashboard-stat-detail">{stat.detail}</span>
+                        {"detail" in stat && stat.detail && <span className="dashboard-stat-detail">{stat.detail}</span>}
                     </article>
                 ))}
                 {error && (

@@ -66,9 +66,6 @@ function MachineCard({ machine }: MachineCardProps) {
                                 {metrics.latencyMs === null ? "—" : metrics.latencyMs.toFixed(0)}
                                 {metrics.latencyMs !== null && <small> ms</small>}
                             </div>
-                            <div className="metric-caption">
-                                {metrics.latencyMs === null ? "Unavailable" : "Round trip"}
-                            </div>
                         </div>
                     </div>
                 ) : (
