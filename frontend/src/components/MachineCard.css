@@ -1,0 +1,229 @@
+.machine-card {
+  min-width: 0;
+  padding: 22px;
+  background: #fff;
+  border: 1px solid #e5e9f0;
+  border-radius: 16px;
+  box-shadow: 0 4px 16px rgba(3, 22, 50, 0.04);
+  color: #031632;
+  font-family: Inter, sans-serif;
+}
+
+.machine-card-header,
+.machine-card-heading,
+.machine-metrics-heading,
+.machine-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.machine-card-header {
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.machine-card-id,
+.metric-label,
+.machine-details dt {
+  color: #778397;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.machine-card-heading h2 {
+  margin: 6px 0 0;
+  font-size: 19px;
+  font-weight: 750;
+  letter-spacing: -0.3px;
+}
+
+.machine-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex-shrink: 0;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.machine-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.machine-status.is-online {
+  background: #e8f7ef;
+  color: #18834b;
+}
+
+.machine-status.is-maintenance {
+  background: #fff4dc;
+  color: #9a6800;
+}
+
+.machine-status.is-offline {
+  background: #f0f2f5;
+  color: #647084;
+}
+
+.machine-details {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 20px 0;
+  padding: 15px 0;
+  border-top: 1px solid #edf0f4;
+  border-bottom: 1px solid #edf0f4;
+}
+
+.machine-details div {
+  min-width: 0;
+}
+
+.machine-details dt {
+  margin-bottom: 6px;
+  font-size: 10px;
+}
+
+.machine-details dd {
+  overflow: hidden;
+  margin: 0;
+  color: #26364d;
+  font-size: 12px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.machine-metrics-heading {
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.machine-metrics-heading h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.machine-metrics-heading > span {
+  color: #8993a2;
+  font-size: 10px;
+}
+
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.metric-tile {
+  min-width: 0;
+  padding: 12px;
+  background: #f7f9fc;
+  border: 1px solid #edf0f4;
+  border-radius: 11px;
+}
+
+.metric-label {
+  overflow: hidden;
+  font-size: 9px;
+  letter-spacing: 0.05em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.metric-value {
+  margin-top: 8px;
+  color: #031632;
+  font-size: 21px;
+  font-weight: 750;
+  letter-spacing: -0.6px;
+}
+
+.metric-value small {
+  margin-left: 2px;
+  color: #6f7a8a;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.metric-caption {
+  min-height: 14px;
+  margin-top: 2px;
+  color: #8993a2;
+  font-size: 10px;
+}
+
+.metric-track {
+  height: 4px;
+  margin-top: 10px;
+  overflow: hidden;
+  background: #e3e8f0;
+  border-radius: 999px;
+}
+
+.metric-track span {
+  display: block;
+  height: 100%;
+  background: #3768d4;
+  border-radius: inherit;
+}
+
+.machine-metrics-empty {
+  margin: 0;
+  padding: 17px 14px;
+  background: #f7f9fc;
+  border: 1px dashed #d7dee8;
+  border-radius: 11px;
+  color: #778397;
+  font-size: 12px;
+  text-align: center;
+}
+
+.machine-card-footer {
+  gap: 12px;
+  margin-top: 18px;
+  color: #8993a2;
+  font-size: 10px;
+}
+
+.machine-attend-button {
+  padding: 8px 13px;
+  background: #031632;
+  border: 0;
+  border-radius: 8px;
+  color: #fff;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.machine-attend-button:hover {
+  background: #1a3b6b;
+}
+
+@media (max-width: 520px) {
+  .machine-card {
+    padding: 17px;
+  }
+
+  .machine-details {
+    gap: 8px;
+  }
+
+  .metric-grid {
+    grid-template-columns: 1fr;
+  }
+}
