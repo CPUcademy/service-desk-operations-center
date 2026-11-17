@@ -1,7 +1,8 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Search, Plus, Send, X } from "lucide-react";
-import { usePeerChat, type PeerStatus } from "../chat/usePeerChat";
+import { type PeerStatus } from "../chat/usePeerChat";
+import { useChat } from "../chat/ChatContext";
 import { API_URL } from "../config";
 import "./Chat.css";
 
@@ -14,8 +15,8 @@ const STATUS_LABEL: Record<PeerStatus, string> = {
 };
 
 function Chat() {
-  const { signalReady, peerId, status, messages, connect, send, hangup } =
-    usePeerChat();
+  const { signalReady, peerId, status, messages, conversations, connect, send, hangup } =
+    useChat();
 
   const [myId, setMyId] = useState<number | null>(null);
   const [text, setText] = useState("");
@@ -23,7 +24,6 @@ function Chat() {
   const [newChat, setNewChat] = useState(false);
   const [newUser, setNewUser] = useState("");
   const [error, setError] = useState("");
-  const [conversations, setConversations] = useState<number[]>([]);
 
   const messagesEnd = useRef<HTMLDivElement>(null);
 
@@ -35,14 +35,6 @@ function Chat() {
       })
       .catch(() => {});
   }, []);
-
-  useEffect(() => {
-    if (peerId !== null) {
-      setConversations((current) =>
-        current.includes(peerId) ? current : [...current, peerId]
-      );
-    }
-  }, [peerId]);
 
   useEffect(() => {
     messagesEnd.current?.scrollIntoView({ behavior: "smooth" });
@@ -153,7 +145,11 @@ function Chat() {
                     type="button"
                     key={id}
                     className={`chat-list-item ${peerId === id ? "active" : ""}`}
-                    onClick={() => connect(id)}
+                    onClick={() => {
+                      // Re-clicking the live conversation would tear it down and wipe its messages
+                      const live = status === "connected" || status === "connecting";
+                      if (peerId !== id || !live) connect(id);
+                    }}
                   >
                     <div className="chat-avatar">{String(id).slice(0, 2)}</div>
                     <div>
