@@ -4,32 +4,34 @@
   width: 100%;
 }
 
-/* Główna zawartość */
-
 .main-content {
   margin-left: 240px;
-
   width: calc(100% - 240px);
   min-height: 100vh;
-
   padding: 24px;
   box-sizing: border-box;
-
   min-width: 0;
 }
 
-/* Tablet i telefon */
+.main-content:has(.chat-page) {
+  padding: 0;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
 
 @media (max-width: 900px) {
   .main-content {
     margin-left: 0;
     width: 100%;
-
     padding: 76px 20px 24px;
   }
-}
 
-/* Małe telefony */
+  .main-content:has(.chat-page) {
+    padding: 70px 0 0;
+    height: 100dvh;
+  }
+}
 
 @media (max-width: 480px) {
   .main-content {
