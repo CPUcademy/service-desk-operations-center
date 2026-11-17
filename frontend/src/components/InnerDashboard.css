@@ -4,12 +4,28 @@
   margin: 0 auto;
   color: #031632;
   font-family: Inter, sans-serif;
+  container-type: inline-size;
 }
 
 .dashboard-stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, max(170px, (100% - 48px) / 4)), 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px;
+}
+
+@container (max-width: 760px) {
+  .dashboard-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .dashboard-stat {
+    padding: 14px 16px;
+  }
+
+  .dashboard-stat strong {
+    font-size: 22px;
+  }
 }
 
 .dashboard-stat {

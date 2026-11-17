@@ -54,14 +54,14 @@ function MachineCard({ machine }: MachineCardProps) {
                             <div className="metric-label">Memory</div>
                             <div className="metric-value">{ramPercent.toFixed(0)}<small>%</small></div>
                             <div className="metric-caption">
-                                {metrics.ramUsed.toFixed(0)} / {metrics.ramTotal.toFixed(0)} MB
+                                {(metrics.ramUsed / 1024).toFixed(1)} / {(metrics.ramTotal / 1024).toFixed(1)} GB
                             </div>
                             <div className="metric-track" aria-hidden="true">
                                 <span style={loadStyle(ramPercent)} />
                             </div>
                         </div>
                         <div className="metric-tile">
-                            <div className="metric-label">Network latency</div>
+                            <div className="metric-label">Latency</div>
                             <div className="metric-value">
                                 {metrics.latencyMs === null ? "—" : metrics.latencyMs.toFixed(0)}
                                 {metrics.latencyMs !== null && <small> ms</small>}
