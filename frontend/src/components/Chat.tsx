@@ -6,11 +6,11 @@ import { API_URL } from "../config";
 import "./Chat.css";
 
 const STATUS_LABEL: Record<PeerStatus, string> = {
-  idle: "Wybierz rozmowę",
-  connecting: "Łączenie...",
-  connected: "Połączono",
-  unavailable: "Użytkownik niedostępny",
-  disconnected: "Rozłączono",
+  idle: "Select a conversation",
+  connecting: "Connecting...",
+  connected: "Connected",
+  unavailable: "User unavailable",
+  disconnected: "Disconnected",
 };
 
 function Chat() {
@@ -54,17 +54,17 @@ function Chat() {
     const id = Number(newUser);
 
     if (!newUser.trim() || !Number.isInteger(id) || id <= 0) {
-      setError("Wpisz prawidłowe ID użytkownika.");
+      setError("Enter a valid user ID.");
       return;
     }
 
     if (id === myId) {
-      setError("Nie możesz rozpocząć rozmowy z samym sobą.");
+      setError("You cannot start a conversation with yourself.");
       return;
     }
 
     if (!signalReady) {
-      setError("Brak połączenia z serwerem.");
+      setError("No connection to the server.");
       return;
     }
 
@@ -92,7 +92,7 @@ function Chat() {
         <div className="chat-sidebar-header">
           <div>
             <h2>Chat</h2>
-            <p>Twoje rozmowy</p>
+            <p>Your conversations</p>
           </div>
 
           <button
@@ -103,7 +103,7 @@ function Chat() {
               setError("");
             }}
             disabled={!signalReady}
-            title="Nowa rozmowa"
+            title="New conversation"
           >
             {newChat ? <X size={19} /> : <Plus size={19} />}
           </button>
@@ -111,7 +111,7 @@ function Chat() {
 
         {newChat && (
           <form className="chat-new-panel" onSubmit={startChat}>
-            <h3>Nowa rozmowa</h3>
+            <h3>New conversation</h3>
 
             <div className="chat-search">
               <Search size={17} />
@@ -122,14 +122,14 @@ function Chat() {
                   setNewUser(event.target.value);
                   setError("");
                 }}
-                placeholder="Wyszukaj użytkownika..."
+                placeholder="Search for a user..."
               />
             </div>
 
             {error && <p className="chat-error">{error}</p>}
 
             <button type="submit" className="chat-start-button">
-              Rozpocznij rozmowę
+              Start conversation
             </button>
           </form>
         )}
@@ -141,7 +141,7 @@ function Chat() {
               <input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Szukaj rozmów..."
+                placeholder="Search conversations..."
               />
             </div>
 
@@ -157,9 +157,9 @@ function Chat() {
                   >
                     <div className="chat-avatar">{String(id).slice(0, 2)}</div>
                     <div>
-                      <strong>Użytkownik #{id}</strong>
+                      <strong>User #{id}</strong>
                       <small>
-                        {peerId === id ? STATUS_LABEL[status] : "Rozmowa"}
+                        {peerId === id ? STATUS_LABEL[status] : "Conversation"}
                       </small>
                     </div>
                   </button>
@@ -167,7 +167,7 @@ function Chat() {
 
               {conversations.length === 0 && (
                 <p className="chat-empty-list">
-                  Nie masz jeszcze rozmów.
+                  You don't have any conversations yet.
                 </p>
               )}
             </div>
@@ -176,8 +176,8 @@ function Chat() {
 
         <div className="chat-my-id">
           {signalReady
-            ? `Twoje ID: ${myId ?? "..."}`
-            : "Brak połączenia z serwerem"}
+            ? `Your ID: ${myId ?? "..."}`
+            : "No connection to the server"}
         </div>
       </aside>
 
@@ -185,7 +185,7 @@ function Chat() {
         <header className="chat-header">
           <div>
             <strong>
-              {peerId !== null ? `Użytkownik #${peerId}` : "Wiadomości"}
+              {peerId !== null ? `User #${peerId}` : "Messages"}
             </strong>
             <small>{STATUS_LABEL[status]}</small>
           </div>
@@ -196,19 +196,19 @@ function Chat() {
             onClick={hangup}
             disabled={peerId === null}
           >
-            Rozłącz
+            Disconnect
           </button>
         </header>
 
         <div className="chat-messages">
           {peerId === null ? (
             <div className="chat-welcome">
-              <h3>Twoje rozmowy</h3>
-              <p>Wybierz rozmowę lub rozpocznij nową.</p>
+              <h3>Your conversations</h3>
+              <p>Select a conversation or start a new one.</p>
             </div>
           ) : messages.length === 0 ? (
             <div className="chat-welcome">
-              <p>To początek rozmowy.</p>
+              <p>This is the beginning of your conversation.</p>
             </div>
           ) : (
             messages.map((message) => (
@@ -228,7 +228,7 @@ function Chat() {
           <input
             value={text}
             onChange={(event) => setText(event.target.value)}
-            placeholder="Napisz wiadomość..."
+            placeholder="Type a message..."
             disabled={!connected}
           />
 
@@ -242,3 +242,4 @@ function Chat() {
 }
 
 export default Chat;
+
