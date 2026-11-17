@@ -5,6 +5,9 @@ import com.sdoc.sdoc.api.dto.TicketDto;
 import com.sdoc.sdoc.security.utilities.SecurityUtils;
 import com.sdoc.sdoc.service.TicketService;
 import lombok.RequiredArgsConstructor;
+
+import java.util.List;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -24,5 +27,15 @@ public class TicketController {
     public ResponseEntity<Void> markTicketAsFixed(long id, Long adminId) {
         ticketService.markTicketAsFixed(id, adminId);
         return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/me")
+    public List<TicketDto> getUserTickets(Authentication authentication) {
+        return ticketService.getUserTickets(SecurityUtils.getUserId(authentication));
+    }
+
+    @GetMapping
+    public List<TicketDto> getAllTickets() {
+        return ticketService.getAll();
     }
 }

@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
@@ -23,6 +24,7 @@ public class TicketService {
     private final UserRepository userRepository;
     private final MachineRepository machineRepository;
 
+    @Transactional(readOnly = true)
     public List<TicketDto> getAll() {
         return ticketRepository.findAll(Sort.by("id")).stream().map(this::convertToDTO).toList();
     }
@@ -38,10 +40,12 @@ public class TicketService {
         );
     }
 
+    @Transactional(readOnly = true)
     public List<TicketDto> getUserTickets(long userId){
         return ticketRepository.findByUserId(userId).stream().map(this::convertToDTO).toList();
     }
 
+    @Transactional
     public TicketDto createTicket(CreateTicketRequestDto ticketFromFrontend, long userId) {
         Machine machine = machineRepository.findById(ticketFromFrontend.machineId()).orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Machine not found"));
         User user = userRepository.findById(userId).orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Error! Please sign in again."));
@@ -57,6 +61,7 @@ public class TicketService {
         return convertToDTO(ticket);
     }
 
+    @Transactional
     public void markTicketAsFixed(long id, Long adminId) {
         Ticket ticket = ticketRepository.findById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Ticket not found"));
         User admin = userRepository.findById(adminId).orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Error! Please sign in again."));
