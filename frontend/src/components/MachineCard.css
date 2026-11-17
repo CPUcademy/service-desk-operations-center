@@ -1,6 +1,8 @@
 .machine-card {
+  display: flex;
   min-width: 0;
-  padding: 22px;
+  flex-direction: column;
+  padding: 20px;
   background: #fff;
   border: 1px solid #e5e9f0;
   border-radius: 16px;
@@ -32,8 +34,18 @@
   text-transform: uppercase;
 }
 
+.machine-card-heading {
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
 .machine-card-heading h2 {
+  max-width: 100%;
+  overflow: hidden;
   margin: 6px 0 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 19px;
   font-weight: 750;
   letter-spacing: -0.3px;
@@ -81,7 +93,15 @@
 }
 
 .machine-metrics {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
   margin-top: 18px;
+}
+
+.machine-metrics-empty {
+  flex: 1;
+  align-content: center;
 }
 
 .machine-metrics-heading {
@@ -103,12 +123,12 @@
 .metric-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
 }
 
 .metric-tile {
   min-width: 0;
-  padding: 12px;
+  padding: 11px;
   background: #f7f9fc;
   border: 1px solid #edf0f4;
   border-radius: 11px;
@@ -156,7 +176,8 @@
 .metric-track span {
   display: block;
   height: 100%;
-  background: #3768d4;
+  background: var(--load-color, #3768d4);
+  transition: width 0.4s ease;
   border-radius: inherit;
 }
 

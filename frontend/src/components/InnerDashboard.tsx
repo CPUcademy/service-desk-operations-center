@@ -70,19 +70,11 @@ function InnerDashboard() {
     const ramTotal = reportingMetrics.reduce((sum, metrics) => sum + metrics.ramTotal, 0);
     const dashboardStats = [
         {
-            label: "Total machines",
-            value: loading ? "…" : String(machines.length),
-            detail: loading ? "Loading data" : "Registered devices",
-        },
-        {
-            label: "Online",
-            value: loading ? "…" : String(onlineCount),
-            detail: loading ? "Loading data" : "Available machines",
-        },
-        {
-            label: "Reporting",
-            value: loading ? "…" : `${reportingMetrics.length} / ${machines.length}`,
-            detail: loading ? "Loading data" : "Sending metrics",
+            label: "Machines online",
+            value: loading ? "…" : `${onlineCount} / ${machines.length}`,
+            detail: loading
+                ? "Loading data"
+                : `${machines.length - onlineCount} offline`,
         },
         {
             label: "Average CPU",
@@ -95,7 +87,7 @@ function InnerDashboard() {
             detail: loading
                 ? "Loading data"
                 : ramTotal
-                    ? `of ${(ramTotal / 1024).toFixed(1)} GB total`
+                    ? `of ${(ramTotal / 1024).toFixed(1)} GB total (${((ramUsed / ramTotal) * 100).toFixed(0)}%)`
                     : "No reports yet",
         },
         {

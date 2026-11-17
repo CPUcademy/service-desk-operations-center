@@ -17,6 +17,11 @@ function MachineCard({ machine }: MachineCardProps) {
         ? Math.min(100, (metrics.ramUsed / metrics.ramTotal) * 100)
         : 0;
 
+    const loadStyle = (percent: number) => ({
+        width: `${percent}%`,
+        "--load-color": percent >= 90 ? "#d92d20" : percent >= 70 ? "#dc8a00" : "#3768d4",
+    } as React.CSSProperties);
+
     return (
         <article className="machine-card">
             <header className="machine-card-header">
@@ -42,7 +47,7 @@ function MachineCard({ machine }: MachineCardProps) {
                             <div className="metric-label">CPU usage</div>
                             <div className="metric-value">{metrics.cpuUsage.toFixed(1)}<small>%</small></div>
                             <div className="metric-track" aria-hidden="true">
-                                <span style={{ width: `${metrics.cpuUsage}%` }} />
+                                <span style={loadStyle(metrics.cpuUsage)} />
                             </div>
                         </div>
                         <div className="metric-tile">
@@ -52,7 +57,7 @@ function MachineCard({ machine }: MachineCardProps) {
                                 {metrics.ramUsed.toFixed(0)} / {metrics.ramTotal.toFixed(0)} MB
                             </div>
                             <div className="metric-track" aria-hidden="true">
-                                <span style={{ width: `${ramPercent}%` }} />
+                                <span style={loadStyle(ramPercent)} />
                             </div>
                         </div>
                         <div className="metric-tile">
