@@ -163,6 +163,9 @@
 .metric-caption {
   min-height: 14px;
   margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: #8993a2;
   font-size: 10px;
 }
@@ -196,11 +199,19 @@
 
 @media (max-width: 520px) {
   .machine-card {
-    padding: 17px;
+    padding: 16px;
   }
 
   .metric-grid {
-    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .metric-tile {
+    padding: 10px;
+  }
+
+  .metric-value {
+    font-size: 18px;
   }
 }
 
