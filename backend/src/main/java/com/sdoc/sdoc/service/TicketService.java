@@ -1,6 +1,7 @@
 package com.sdoc.sdoc.service;
 
 import com.sdoc.sdoc.api.dto.TicketDto;
+import com.sdoc.sdoc.api.dto.TicketStatsDto;
 import com.sdoc.sdoc.persistance.entity.Ticket;
 import com.sdoc.sdoc.persistance.entity.User;
 import com.sdoc.sdoc.persistance.entity.Machine;
@@ -78,4 +79,17 @@ public class TicketService {
         ticket.setFixed(true);
         ticketRepository.save(ticket);
     }
+
+    @Transactional(readOnly = true)
+    public TicketStatsDto getTicketStatsForDashboard() {
+    return new TicketStatsDto(
+            ticketRepository.count(),
+            ticketRepository.countByIsFixedFalse(),
+            ticketRepository.countByIsFixedTrue(),
+            ticketRepository.countByPriorityAndIsFixedFalse(1),
+            ticketRepository.countByPriorityAndIsFixedFalse(2),
+            ticketRepository.countByPriorityAndIsFixedFalse(3));
+    }
+
+    // 1 - critical, 2 - high, 3 - medium
 }
