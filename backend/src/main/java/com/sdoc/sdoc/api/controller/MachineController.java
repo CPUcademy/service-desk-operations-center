@@ -19,4 +19,10 @@ public class MachineController {
     public List<MachineDto> getAll() {
         return machineService.getAll();
     }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/{id}")
+    public MachineDto getMachineById(@PathVariable long id) {
+        return machineService.getMachineById(id);
+    }
 }

@@ -4,6 +4,7 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.sdoc.sdoc.api.dto.MachineDto;
 import com.sdoc.sdoc.api.dto.MachineMetricsDto;
+import com.sdoc.sdoc.persistance.entity.Machine;
 import com.sdoc.sdoc.persistance.repository.MachineRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
@@ -23,12 +24,20 @@ public class MachineService {
     private final Cache<Long, MachineMetricsDto> metrics = Caffeine.newBuilder()
             .expireAfterWrite(METRICS_TTL).maximumSize(10_000).build();
 
-    public List<MachineDto> getAll() {
-        return machineRepository.findAll(Sort.by("id")).stream()
-                .map(m -> new MachineDto(m.getId(), m.getType(), m.getDepartment(), m.getStatus(), m.getHostname(),
-                        m.getIpAddress(), metrics.getIfPresent(m.getId()))).toList();
+    private MachineDto convertToDto(Machine m) {
+        return new MachineDto(m.getId(), m.getType(), m.getDepartment(), m.getStatus(), m.getHostname(),
+                        m.getIpAddress(), metrics.getIfPresent(m.getId()));
     }
 
+    public List<MachineDto> getAll() {
+        return machineRepository.findAll(Sort.by("id")).stream()
+                .map(this::convertToDto).toList();
+    }
+
+    public MachineDto getMachineById(long machineId) {
+        return machineRepository.findById(machineId).map(this::convertToDto).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Machine not found"));
+    }
+    
     public void saveMetrics(Long machineId, MachineMetricsDto dto) {
         if (dto == null || isNotPercent(dto.cpuUsage()) || isNotFinite(dto.ramUsed()) || isNotFinite(dto.ramTotal())
                 || dto.ramUsed() < 0 || dto.ramTotal() <= 0 || dto.ramUsed() > dto.ramTotal()
