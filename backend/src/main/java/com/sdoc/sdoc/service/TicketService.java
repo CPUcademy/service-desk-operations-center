@@ -74,6 +74,7 @@ public class TicketService {
     @Transactional
     public void markTicketAsFixed(long id, Long adminId) {
         Ticket ticket = ticketRepository.findById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Ticket not found"));
+        if (ticket.isFixed()) throw new ResponseStatusException(HttpStatus.CONFLICT, "Ticket already closed.");
         User admin = userRepository.findById(adminId).orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Error! Please sign in again."));
         ticket.setAdmin(admin);
         ticket.setFixed(true);

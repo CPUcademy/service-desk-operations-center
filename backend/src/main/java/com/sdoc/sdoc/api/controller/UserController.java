@@ -44,4 +44,8 @@ public class UserController {
         authService.clearAuthCookies(response);
         return ResponseEntity.noContent().build();
     }
+    @PatchMapping("/me")
+    public UserDataDto updateProfile(Authentication authentication, @RequestBody Map<String, String> body) {
+        return userService.updateFullName(SecurityUtils.getUserId(authentication), body.get("fullName"));
+    }
 }

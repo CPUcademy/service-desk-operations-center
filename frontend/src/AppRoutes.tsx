@@ -11,18 +11,21 @@ import Profile from "./components/Profile";
 
 import ProtectedRoute from "./auth/ProtectedRoute";
 import PublicRoute from "./auth/PublicRoute";
+import { ChatProvider } from "./chat/ChatContext";
 
 import "./App.css";
 
 function AppLayout() {
   return (
-    <div className="app-layout">
-      <Navbar />
+    <ChatProvider>
+      <div className="app-layout">
+        <Navbar />
 
-      <main className="main-content">
-        <Outlet />
-      </main>
-    </div>
+        <main className="main-content">
+          <Outlet />
+        </main>
+      </div>
+    </ChatProvider>
   );
 }
 

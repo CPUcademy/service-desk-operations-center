@@ -1,8 +1,9 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Search, Plus, Send, X } from "lucide-react";
-import { usePeerChat, type PeerStatus } from "../chat/usePeerChat";
-import { API_URL } from "../config";
+import { type PeerStatus } from "../chat/usePeerChat";
+import { useChat } from "../chat/ChatContext";
+import { useAuth } from "../auth/AuthContext";
 import "./Chat.css";
 
 const STATUS_LABEL: Record<PeerStatus, string> = {
@@ -14,35 +15,18 @@ const STATUS_LABEL: Record<PeerStatus, string> = {
 };
 
 function Chat() {
-  const { signalReady, peerId, status, messages, connect, send, hangup } =
-    usePeerChat();
+  const { signalReady, peerId, status, messages, conversations, connect, send, hangup } =
+    useChat();
 
-  const [myId, setMyId] = useState<number | null>(null);
+  const { user } = useAuth();
+  const myId = user?.id ?? null;
   const [text, setText] = useState("");
   const [search, setSearch] = useState("");
   const [newChat, setNewChat] = useState(false);
   const [newUser, setNewUser] = useState("");
   const [error, setError] = useState("");
-  const [conversations, setConversations] = useState<number[]>([]);
 
   const messagesEnd = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    fetch(`${API_URL}/api/v1/users/me`, { credentials: "include" })
-      .then((response) => (response.ok ? response.json() : null))
-      .then((user) => {
-        if (user) setMyId(user.id);
-      })
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    if (peerId !== null) {
-      setConversations((current) =>
-        current.includes(peerId) ? current : [...current, peerId]
-      );
-    }
-  }, [peerId]);
 
   useEffect(() => {
     messagesEnd.current?.scrollIntoView({ behavior: "smooth" });
@@ -153,7 +137,11 @@ function Chat() {
                     type="button"
                     key={id}
                     className={`chat-list-item ${peerId === id ? "active" : ""}`}
-                    onClick={() => connect(id)}
+                    onClick={() => {
+                      // Re-clicking the live conversation would tear it down and wipe its messages
+                      const live = status === "connected" || status === "connecting";
+                      if (peerId !== id || !live) connect(id);
+                    }}
                   >
                     <div className="chat-avatar">{String(id).slice(0, 2)}</div>
                     <div>
