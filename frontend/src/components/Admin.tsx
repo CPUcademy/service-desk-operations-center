@@ -46,7 +46,7 @@ function Admin() {
       const body = await response.json().catch(() => null);
       if (!response.ok) throw new Error(body?.message ?? "Failed to add machine.");
       setForm(EMPTY);
-      setMessage({ text: `Machine #${body.id} added. Set MachineId to ${body.id} in the worker on that computer.`, error: false });
+      setMessage({ text: `Machine #${body.id} added. Set MachineId to ${body.id} in the worker configuration.`, error: false });
     } catch (error) {
       setMessage({ text: error instanceof Error ? error.message : "Failed to add machine.", error: true });
     } finally {

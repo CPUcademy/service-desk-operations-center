@@ -139,7 +139,7 @@ function Profile() {
         </div>
         </div>
 
-        <h2>Change password</h2>
+        <div className="profile-divider"></div>
 
         <div className="password-fields">
           <div className="profile-field">

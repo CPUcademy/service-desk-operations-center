@@ -16,12 +16,6 @@
   letter-spacing: -0.5px;
 }
 
-.profile-page h2 {
-  margin: 8px 0 0;
-  font-size: 14px;
-  font-weight: 800;
-}
-
 .profile-form {
   display: flex;
   flex-direction: column;
@@ -99,6 +93,13 @@
   color: #031632;
 }
 
+.profile-divider {
+  width: 100%;
+  height: 1px;
+  background: #e5e6e9;
+  margin: 8px 0 0;
+}
+
 .password-fields {
   display: flex;
   gap: 12px;
@@ -138,7 +139,9 @@
 }
 
 .profile-logout {
-  margin-top: 12px;
+  margin-top: 20px;
+  padding-top: 14px;
+  border-top: 1px solid #e5e6e9;
   display: flex;
   justify-content: flex-end;
 }
@@ -148,8 +151,8 @@
   border: 1px solid #dc2626;
   color: #dc2626;
   border-radius: 10px;
-  width: 140px;
   height: 38px;
+  padding: 0 18px;
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
@@ -168,7 +171,14 @@
     font-size: 24px;
   }
 
-  .password-fields {
+  .profile-divider {
+  width: 100%;
+  height: 1px;
+  background: #e5e6e9;
+  margin: 8px 0 0;
+}
+
+.password-fields {
     flex-direction: column;
   }
 
