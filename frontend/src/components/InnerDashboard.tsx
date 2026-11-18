@@ -58,8 +58,10 @@ function InnerDashboard() {
     const visibleMachines = machines.filter(machine =>
         (!department || machine.department.toLowerCase() === department.toLowerCase())
         && (!state || getMachineState(machine) === state)
-        && (!query || [String(machine.id), machine.hostname, machine.ipAddress]
-            .some(value => value.toLowerCase().includes(query)))
+        && (!query || (query.startsWith("#")
+            ? `#${machine.id}` === query
+            : [String(machine.id), machine.hostname, machine.ipAddress]
+                .some(value => value.toLowerCase().includes(query))))
     );
     const averageCpu = reportingMetrics.length
         ? reportingMetrics.reduce((sum, metrics) => sum + metrics.cpuUsage, 0) / reportingMetrics.length
@@ -115,7 +117,7 @@ function InnerDashboard() {
                 <input
                     type="search"
                     className="machine-search"
-                    placeholder="Search by ID, hostname or IP"
+                    placeholder="Search by #ID, hostname or IP"
                     aria-label="Search machines"
                     value={search}
                     onChange={event => setSearch(event.target.value)}

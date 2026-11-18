@@ -24,7 +24,7 @@ public class MachineService {
     private static final List<String> DEPARTMENTS = List.of("Finance", "Sales", "IT", "HR", "Management");
     private static final String HOSTNAME_PATTERN = "^[A-Za-z0-9](?:[A-Za-z0-9.-]{0,251}[A-Za-z0-9])?$";
     private static final String IPV4_PATTERN = "^((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)\\.){3}(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)$";
-    private static final Duration METRICS_TTL = Duration.ofSeconds(30);
+    private static final Duration METRICS_TTL = Duration.ofSeconds(10);
     private final MachineRepository machineRepository;
     private final Cache<Long, MachineMetricsDto> metrics = Caffeine.newBuilder()
             .expireAfterWrite(METRICS_TTL).maximumSize(10_000).build();

@@ -64,7 +64,7 @@ function MachineCard({ machine }: MachineCardProps) {
                         </div>
                     </div>
                 ) : (
-                    <p className="machine-metrics-empty">No data</p>
+                    <p className="machine-metrics-empty">Offline</p>
                 )}
             </section>
         </article>
