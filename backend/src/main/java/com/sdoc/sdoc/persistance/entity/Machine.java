@@ -26,4 +26,8 @@ public class Machine {
     @Column(name = "\"ipAddress\"",nullable = false)
     private  String ipAddress;
 
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name="\"ownerId\"", nullable = false)
+    private User owner;
+
 }

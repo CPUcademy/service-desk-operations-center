@@ -14,7 +14,11 @@ CREATE TABLE "Machine" (
   "status" VARCHAR(255) NOT NULL,
   "hostname" VARCHAR(255) NOT NULL,
   "ipAddress" VARCHAR(255) NOT NULL,
-  PRIMARY KEY ("id")
+  "ownerId" BIGINT NOT NULL,
+  PRIMARY KEY ("id"),
+  CONSTRAINT "FK_Machine_ownerId"
+    FOREIGN KEY ("ownerId")
+      REFERENCES "User"("id")
 );
 
 CREATE TABLE "Ticket" (
@@ -34,7 +38,7 @@ CREATE TABLE "Ticket" (
       REFERENCES "User"("id") ON DELETE CASCADE,
   CONSTRAINT "FK_Ticket_machineId"
     FOREIGN KEY ("machineId")
-      REFERENCES "Machine"("id")
+      REFERENCES "Machine"("id") ON DELETE CASCADE
 );
 
 CREATE TABLE "RefreshTokens" (
