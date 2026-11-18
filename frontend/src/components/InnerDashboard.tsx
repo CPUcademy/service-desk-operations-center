@@ -82,7 +82,7 @@ function InnerDashboard() {
             value: ramTotal ? `${(ramUsed / 1024).toFixed(1)} GB` : "—",
             detail: ramTotal
                     ? `of ${(ramTotal / 1024).toFixed(1)} GB total (${((ramUsed / ramTotal) * 100).toFixed(0)}%)`
-                    : "No reports yet",
+                    : null,
         },
         {
             label: "Average latency",

@@ -69,7 +69,7 @@ function MachineCard({ machine }: MachineCardProps) {
                         </div>
                     </div>
                 ) : (
-                    <p className="machine-metrics-empty">No worker metrics received yet.</p>
+                    <p className="machine-metrics-empty">No data</p>
                 )}
             </section>
         </article>

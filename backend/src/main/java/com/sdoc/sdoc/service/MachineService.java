@@ -18,15 +18,23 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class MachineService {
-    private static final Duration METRICS_TTL = Duration.ofMinutes(2);
+    private static final Duration METRICS_TTL = Duration.ofSeconds(30);
     private final MachineRepository machineRepository;
     private final Cache<Long, MachineMetricsDto> metrics = Caffeine.newBuilder()
             .expireAfterWrite(METRICS_TTL).maximumSize(10_000).build();
 
     public List<MachineDto> getAll() {
         return machineRepository.findAll(Sort.by("id")).stream()
-                .map(m -> new MachineDto(m.getId(), m.getType(), m.getDepartment(), m.getStatus(), m.getHostname(),
-                        m.getIpAddress(), metrics.getIfPresent(m.getId()))).toList();
+                .map(m -> {
+                    MachineMetricsDto latest = metrics.getIfPresent(m.getId());
+                    return new MachineDto(m.getId(), m.getType(), m.getDepartment(), liveStatus(m.getStatus(), latest),
+                            m.getHostname(), m.getIpAddress(), latest);
+                }).toList();
+    }
+
+    private static String liveStatus(String storedStatus, MachineMetricsDto latest) {
+        if ("maintenance".equalsIgnoreCase(storedStatus)) return storedStatus;
+        return latest != null ? "online" : "offline";
     }
 
     public void saveMetrics(Long machineId, MachineMetricsDto dto) {
