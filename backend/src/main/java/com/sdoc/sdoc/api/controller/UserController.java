@@ -44,14 +44,6 @@ public class UserController {
         return ResponseEntity.noContent().build();
     }
 
-    @DeleteMapping("/me")
-    public ResponseEntity<Void> deleteAccount(Authentication authentication, @RequestBody(required = false) Map<String, String> body, HttpServletResponse response) {
-        Long userId = SecurityUtils.getUserId(authentication);
-        userService.deleteAccount(userId, body == null ? Map.of() : body);
-        tokenRevocationService.revokeUser(userId);
-        authService.clearAuthCookies(response);
-        return ResponseEntity.noContent().build();
-    }
     @PatchMapping("/me")
     public UserDataDto updateProfile(Authentication authentication, @RequestBody Map<String, String> body) {
         return userService.updateFullName(SecurityUtils.getUserId(authentication), body.get("fullName"));

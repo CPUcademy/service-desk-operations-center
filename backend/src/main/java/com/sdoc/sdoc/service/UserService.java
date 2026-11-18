@@ -38,14 +38,6 @@ public class UserService {
     }
 
     @Transactional
-    public void deleteAccount(Long userId, Map<String, String> body) {
-        User user = findUser(userId);
-        requireReauthenticated(user, body);
-        refreshTokenRepository.deleteByUserId(userId);
-        userRepository.delete(user);
-    }
-
-    @Transactional
     public User changePassword(Long userId, Map<String, String> body) {
         User user = findUser(userId);
         String newPassword = body.get("newPassword");
