@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import MachineCard from "./MachineCard";
 import type { Machine } from "../types/Machine";
-import { API_URL } from "../config";
+import { apiFetch } from "../api";
 import "./InnerDashboard.css";
 
 function InnerDashboard() {
@@ -14,13 +14,7 @@ function InnerDashboard() {
 
         async function fetchMachines() {
             try {
-                const response = await fetch(
-                    `${API_URL}/api/v1/machines`,
-                    {
-                        method: 'GET',
-                        credentials: 'include'
-                    }
-                );
+                const response = await apiFetch('/api/v1/machines');
 
                 if (!response.ok) {
                     throw new Error('Failed to fetch machines');

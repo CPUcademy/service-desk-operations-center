@@ -5,7 +5,7 @@ import {
     useState,
     type ReactNode
 } from 'react';
-import { API_URL } from '../config';
+import { apiFetch, setSessionExpiredHandler } from '../api';
 
 export interface User {
     id: number;
@@ -19,7 +19,7 @@ interface AuthContextType {
     isAuthenticated: boolean;
     loading: boolean;
     checkAuth: () => Promise<boolean>;
-    logout: () => void;
+    logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -28,14 +28,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
 
+    // apiFetch refreshes an expired access cookie from the refresh cookie before giving up
     async function checkAuth(): Promise<boolean> {
         try {
-            const response = await fetch(
-                `${API_URL}/api/v1/users/me`,
-                {
-                    credentials: 'include'
-                }
-            );
+            const response = await apiFetch('/api/v1/users/me');
 
             if (!response.ok) {
                 setUser(null);
@@ -53,12 +49,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
     }
 
-    function logout() {
+    // Revokes the tokens server-side and clears both cookies; the UI logs out even if the call fails
+    async function logout() {
+        try {
+            await apiFetch('/api/v1/auth/logout', { method: 'POST' });
+        } catch {
+            // Server unreachable: the cookies stay, and the next visit re-checks them
+        }
         setUser(null);
     }
 
     useEffect(() => {
+        setSessionExpiredHandler(() => setUser(null));
         checkAuth();
+        return () => setSessionExpiredHandler(null);
     }, []);
 
     return (
