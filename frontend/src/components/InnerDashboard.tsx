@@ -1,10 +1,15 @@
 import { useEffect, useState } from "react";
 import MachineCard from "./MachineCard";
-import type { Machine } from "../types/Machine";
+import { getMachineState, MACHINE_STATE_LABEL, type Machine, type MachineState } from "../types/Machine";
 import { apiFetch } from "../api";
 import "./InnerDashboard.css";
 
+const DEPARTMENTS = ["Finance", "Sales", "IT", "HR", "Management"];
+
 function InnerDashboard() {
+    const [search, setSearch] = useState("");
+    const [department, setDepartment] = useState("");
+    const [state, setState] = useState<MachineState | "">("");
     const [machines, setMachines] = useState<Machine[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -49,8 +54,15 @@ function InnerDashboard() {
         machine.metrics ? [machine.metrics] : []
     );
     const onlineCount = machines.filter(machine =>
-        ["online", "active", "available"].includes(machine.status.toLowerCase())
+        ["online", "alert"].includes(getMachineState(machine))
     ).length;
+    const query = search.trim().toLowerCase();
+    const visibleMachines = machines.filter(machine =>
+        (!department || machine.department.toLowerCase() === department.toLowerCase())
+        && (!state || getMachineState(machine) === state)
+        && (!query || [String(machine.id), machine.hostname, machine.ipAddress]
+            .some(value => value.toLowerCase().includes(query)))
+    );
     const averageCpu = reportingMetrics.length
         ? reportingMetrics.reduce((sum, metrics) => sum + metrics.cpuUsage, 0) / reportingMetrics.length
         : null;
@@ -60,8 +72,9 @@ function InnerDashboard() {
     const averageLatency = latencies.length
         ? latencies.reduce((sum, latency) => sum + latency, 0) / latencies.length
         : null;
-    const ramUsed = reportingMetrics.reduce((sum, metrics) => sum + metrics.ramUsed, 0);
-    const ramTotal = reportingMetrics.reduce((sum, metrics) => sum + metrics.ramTotal, 0);
+    const averageRam = reportingMetrics.length
+        ? reportingMetrics.reduce((sum, metrics) => sum + metrics.ramUsed / metrics.ramTotal, 0) / reportingMetrics.length * 100
+        : null;
     const dashboardStats = [
         {
             label: "Machines online",
@@ -72,11 +85,8 @@ function InnerDashboard() {
             value: averageCpu === null ? "—" : `${averageCpu.toFixed(1)}%`,
         },
         {
-            label: "Memory in use",
-            value: ramTotal ? `${(ramUsed / 1024).toFixed(1)} GB` : "—",
-            detail: ramTotal
-                    ? `of ${(ramTotal / 1024).toFixed(1)} GB total (${((ramUsed / ramTotal) * 100).toFixed(0)}%)`
-                    : null,
+            label: "Average memory",
+            value: averageRam === null ? "—" : `${averageRam.toFixed(1)}%`,
         },
         {
             label: "Average latency",
@@ -93,7 +103,6 @@ function InnerDashboard() {
                         {loading
                             ? <span className="skeleton dashboard-stat-skeleton" />
                             : <strong>{stat.value}</strong>}
-                        {!loading && "detail" in stat && stat.detail && <span className="dashboard-stat-detail">{stat.detail}</span>}
                     </article>
                 ))}
                 {error && (
@@ -104,14 +113,46 @@ function InnerDashboard() {
                     </article>
                 )}
             </section>
+            <section className="machine-filters" aria-label="Filter machines">
+                <input
+                    type="search"
+                    className="machine-search"
+                    placeholder="Search by ID, hostname or IP"
+                    aria-label="Search machines"
+                    value={search}
+                    onChange={event => setSearch(event.target.value)}
+                />
+                <select
+                    className="machine-filter"
+                    aria-label="Department"
+                    value={department}
+                    onChange={event => setDepartment(event.target.value)}
+                >
+                    <option value="">All departments</option>
+                    {DEPARTMENTS.map(name => <option key={name} value={name}>{name}</option>)}
+                </select>
+                <select
+                    className="machine-filter"
+                    aria-label="Status"
+                    value={state}
+                    onChange={event => setState(event.target.value as MachineState | "")}
+                >
+                    <option value="">All statuses</option>
+                    {(Object.keys(MACHINE_STATE_LABEL) as MachineState[]).map(key => (
+                        <option key={key} value={key}>{MACHINE_STATE_LABEL[key]}</option>
+                    ))}
+                </select>
+            </section>
             <section className="machine-stat-grid" aria-label="Statistics for each machine">
                 {loading
                     ? [0, 1, 2].map(i => <div key={i} className="skeleton machine-card-skeleton" />)
-                    : machines.map(machine => (
+                    : visibleMachines.map(machine => (
                         <MachineCard key={machine.id} machine={machine} />
                     ))}
-                {!loading && !error && machines.length === 0 && (
-                    <p className="machine-grid-empty">No machines registered yet.</p>
+                {!loading && !error && visibleMachines.length === 0 && (
+                    <p className="machine-grid-empty">
+                        {machines.length ? "No machines match your filters." : "No machines registered yet."}
+                    </p>
                 )}
             </section>
         </main>
