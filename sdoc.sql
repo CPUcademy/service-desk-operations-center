@@ -29,6 +29,8 @@ CREATE TABLE "Ticket" (
   "description" VARCHAR(255) NOT NULL,
   "priority" INTEGER NOT NULL,
   "isFixed" BOOLEAN NOT NULL DEFAULT FALSE,
+  "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  "closedAt" TIMESTAMPTZ DEFAULT NULL,
   PRIMARY KEY ("id"),
   CONSTRAINT "FK_Ticket_adminId"
     FOREIGN KEY ("adminId")

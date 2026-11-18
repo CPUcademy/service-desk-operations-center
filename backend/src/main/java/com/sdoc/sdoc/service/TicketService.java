@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Instant;
 import java.util.List;
 
 @Service
@@ -37,9 +38,19 @@ public class TicketService {
         Long adminId = admin != null ? admin.getId() : null;
         String adminFullName = admin != null ? admin.getFullName() : null;
 
-        return new TicketDto(ticket.getId(), adminId, ticket.getUser().getId(),
-                ticket.getMachine().getId(), ticket.getDescription(), ticket.getPriority(), ticket.isFixed(),
-                adminFullName, ticket.getUser().getFullName(), ticket.getMachine().getHostname()
+        return new TicketDto(
+            ticket.getId(),
+            adminId, 
+            ticket.getUser().getId(),
+            ticket.getMachine().getId(), 
+            ticket.getDescription(), 
+            ticket.getPriority(), 
+            ticket.isFixed(),
+            adminFullName, 
+            ticket.getUser().getFullName(), 
+            ticket.getMachine().getHostname(),
+            ticket.getCreatedAt(),
+            ticket.getClosedAt()
         );
     }
 
@@ -78,6 +89,7 @@ public class TicketService {
         User admin = userRepository.findById(adminId).orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Error! Please sign in again."));
         ticket.setAdmin(admin);
         ticket.setFixed(true);
+        ticket.setClosedAt(Instant.now());
         ticketRepository.save(ticket);
     }
 
