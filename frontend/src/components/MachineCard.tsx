@@ -1,4 +1,4 @@
-import type { Machine } from "../types/Machine";
+import { getMachineState, MACHINE_STATE_LABEL, type Machine } from "../types/Machine";
 import "./MachineCard.css";
 
 interface MachineCardProps {
@@ -6,12 +6,7 @@ interface MachineCardProps {
 }
 
 function MachineCard({ machine }: MachineCardProps) {
-    const status = machine.status.toLowerCase();
-    const statusClass = ["online", "active", "available"].includes(status)
-        ? "is-online"
-        : status === "maintenance"
-            ? "is-maintenance"
-            : "is-offline";
+    const state = getMachineState(machine);
     const metrics = machine.metrics;
     const ramPercent = metrics
         ? Math.min(100, (metrics.ramUsed / metrics.ramTotal) * 100)
@@ -28,11 +23,11 @@ function MachineCard({ machine }: MachineCardProps) {
                 <div className="machine-card-heading">
                     <span className="machine-card-id">Machine #{machine.id}</span>
                     <h2>{machine.hostname}</h2>
-                    <span className="machine-card-type">{machine.type}</span>
+                    <span className="machine-card-type">{machine.type} · {machine.department} · {machine.ipAddress}</span>
                 </div>
-                <span className={`machine-status ${statusClass}`}>
+                <span className={`machine-status is-${state}`}>
                     <span className="machine-status-dot" aria-hidden="true" />
-                    {machine.status}
+                    {MACHINE_STATE_LABEL[state]}
                 </span>
             </header>
 
@@ -69,7 +64,7 @@ function MachineCard({ machine }: MachineCardProps) {
                         </div>
                     </div>
                 ) : (
-                    <p className="machine-metrics-empty">No worker metrics received yet.</p>
+                    <p className="machine-metrics-empty">No data</p>
                 )}
             </section>
         </article>

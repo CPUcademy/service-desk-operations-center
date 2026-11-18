@@ -19,7 +19,7 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class MachineService {
-    private static final Duration METRICS_TTL = Duration.ofMinutes(2);
+    private static final Duration METRICS_TTL = Duration.ofSeconds(30);
     private final MachineRepository machineRepository;
     private final Cache<Long, MachineMetricsDto> metrics = Caffeine.newBuilder()
             .expireAfterWrite(METRICS_TTL).maximumSize(10_000).build();

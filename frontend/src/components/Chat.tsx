@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Search, Plus, Send, X } from "lucide-react";
 import { type PeerStatus } from "../chat/usePeerChat";
 import { useChat } from "../chat/ChatContext";
-import { API_URL } from "../config";
+import { useAuth } from "../auth/AuthContext";
 import "./Chat.css";
 
 const STATUS_LABEL: Record<PeerStatus, string> = {
@@ -18,7 +18,8 @@ function Chat() {
   const { signalReady, peerId, status, messages, conversations, connect, send, hangup } =
     useChat();
 
-  const [myId, setMyId] = useState<number | null>(null);
+  const { user } = useAuth();
+  const myId = user?.id ?? null;
   const [text, setText] = useState("");
   const [search, setSearch] = useState("");
   const [newChat, setNewChat] = useState(false);
@@ -26,15 +27,6 @@ function Chat() {
   const [error, setError] = useState("");
 
   const messagesEnd = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    fetch(`${API_URL}/api/v1/users/me`, { credentials: "include" })
-      .then((response) => (response.ok ? response.json() : null))
-      .then((user) => {
-        if (user) setMyId(user.id);
-      })
-      .catch(() => {});
-  }, []);
 
   useEffect(() => {
     messagesEnd.current?.scrollIntoView({ behavior: "smooth" });

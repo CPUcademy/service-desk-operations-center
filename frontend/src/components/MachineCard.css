@@ -54,7 +54,11 @@
 }
 
 .machine-card-type {
-  display: inline-block;
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   margin-top: 4px;
   color: #778397;
   font-size: 11px;
@@ -69,7 +73,7 @@
   border-radius: 999px;
   font-size: 11px;
   font-weight: 700;
-  text-transform: capitalize;
+  white-space: nowrap;
 }
 
 .machine-status-dot {
@@ -87,6 +91,11 @@
 .machine-status.is-maintenance {
   background: #fff4dc;
   color: #9a6800;
+}
+
+.machine-status.is-alert {
+  background: #fdecea;
+  color: #b42318;
 }
 
 .machine-status.is-offline {

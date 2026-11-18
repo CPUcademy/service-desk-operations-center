@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
-import { API_URL } from "../config";
+import { apiFetch } from "../api";
 import "./Login.css";
 
 function Login() {
@@ -37,9 +37,8 @@ function Login() {
         setSubmitting(true);
         setMessage(null);
 
-        fetch(`${API_URL}/api/v1/auth/login`, {
+        apiFetch('/api/v1/auth/login', {
             method: 'POST',
-            credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(formData),
         })
