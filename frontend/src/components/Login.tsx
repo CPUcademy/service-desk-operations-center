@@ -81,19 +81,14 @@ function Login() {
     return (
         <div className="login-page">
             <aside className="login-hero">
-                <div className="hero-content">
-                    <h2 className="hero-brand">IT helpdesk</h2>
-                    <h1 className="hero-title">Service Desk Operations Center</h1>
-                </div>
+                <strong className="hero-brand">SDOC</strong>
+                <h1 className="hero-title">Service Desk<br />Operations Center</h1>
             </aside>
 
             <main className="login-main">
                 <div className="login-card">
-                    <h2 className="login-brand">IT helpdesk</h2>
-
-                    <h2 className="login-title">
-                        <b>Log In</b>
-                    </h2>
+                    <strong className="login-brand">SDOC</strong>
+                    <h2 className="login-title">Log in</h2>
 
                     <form onSubmit={handleSubmit} className="login-form">
                         <label className="form-label" htmlFor="email">
@@ -108,16 +103,19 @@ function Login() {
                             required
                             className="field-input"
                             onChange={handleChange}
-                            placeholder="example@xyz.com"
+                            placeholder="name@company.com"
                         />
+
+                        <label className="form-label" htmlFor="password">
+                            PASSWORD
+                        </label>
 
                         <div className="password-container">
                             <input
+                                id="password"
                                 name="password"
                                 type={showPassword ? "text" : "password"}
-                                placeholder="Password"
                                 autoComplete="current-password"
-                                aria-label="Password"
                                 required
                                 onChange={handleChange}
                                 className="field-input"
@@ -132,9 +130,9 @@ function Login() {
                                 onPointerLeave={() => setShowPassword(false)}
                             >
                                 {showPassword ? (
-                                    <Eye size={20} />
+                                    <Eye size={16} />
                                 ) : (
-                                    <EyeOff size={20} />
+                                    <EyeOff size={16} />
                                 )}
                             </button>
 
@@ -142,7 +140,7 @@ function Login() {
                                 {submitting && <span className="spinner spinner-small" aria-hidden="true" />}
                                 {remainingTime > 0
                                     ? `Try again in ${remainingTime}s`
-                                    : submitting ? 'Signing in…' : 'Login'}
+                                    : submitting ? 'Signing in…' : 'Log in'}
                             </button>
                         </div>
                         {message && (

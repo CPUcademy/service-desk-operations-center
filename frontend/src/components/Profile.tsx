@@ -31,7 +31,7 @@ function PasswordInput({ id, placeholder, value, onChange }: PasswordInputProps)
         onPointerUp={() => setVisible(false)}
         onPointerLeave={() => setVisible(false)}
       >
-        {visible ? <Eye size={20} /> : <EyeOff size={20} />}
+        {visible ? <Eye size={16} /> : <EyeOff size={16} />}
       </button>
     </div>
   );
@@ -104,7 +104,7 @@ function Profile() {
 
   return (
     <div className="profile-page">
-      <h1>Your Profile</h1>
+      <h1>Profile</h1>
       <form className="profile-form" onSubmit={handleSubmit}>
         <div className="profile-field">
           <label htmlFor="fullName">FULL NAME</label>
@@ -169,13 +169,13 @@ function Profile() {
 
         <div className="profile-actions">
           <button type="submit" className="profile-save-button" disabled={saving}>
-            {saving ? "Saving…" : "Save Changes"}
+            {saving ? "Saving…" : "Save changes"}
           </button>
         </div>
       </form>
       <div className="profile-logout">
         <button type="button" onClick={() => void logout()}>
-          Logout
+          Log out
         </button>
       </div>
     </div>

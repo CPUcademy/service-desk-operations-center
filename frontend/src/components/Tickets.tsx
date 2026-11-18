@@ -307,7 +307,7 @@ function Tickets() {
         ) : (
           <div className="ticket-list">
             {pageTickets.map(ticket => (
-              <article key={ticket.id} className={`ticket-card ${ticket.isFixed ? "fixed" : ""}`}>
+              <article key={ticket.id} className={`ticket-card ${ticket.isFixed ? "fixed" : ""}`} data-priority={ticket.priority}>
                 <div className="ticket-card-top">
                   <span className="ticket-id">#{ticket.id}</span>
                   <span className={`ticket-badge priority-${ticket.priority}`}>{priorityLabel(ticket.priority, cooked)}</span>

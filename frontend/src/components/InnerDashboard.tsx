@@ -1,8 +1,20 @@
 import { useEffect, useState } from "react";
-import MachineCard from "./MachineCard";
+import { Search } from "lucide-react";
 import { DEPARTMENTS, getMachineState, MACHINE_STATE_LABEL, type Machine, type MachineState } from "../types/Machine";
 import { apiFetch } from "../api";
 import "./InnerDashboard.css";
+
+const STATES = Object.keys(MACHINE_STATE_LABEL) as MachineState[];
+
+const loadTone = (percent: number) => Math.round(percent) >= 90 ? "is-bad" : Math.round(percent) >= 70 ? "is-warn" : "";
+
+function Meter({ percent }: { percent: number }) {
+    return (
+        <span className={`meter ${loadTone(percent)}`} aria-hidden="true">
+            <span style={{ width: `${Math.min(100, percent)}%` }} />
+        </span>
+    );
+}
 
 function InnerDashboard() {
     const [search, setSearch] = useState("");
@@ -11,6 +23,7 @@ function InnerDashboard() {
     const [machines, setMachines] = useState<Machine[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
     useEffect(() => {
         let active = true;
         let timeoutId: number;
@@ -28,6 +41,7 @@ function InnerDashboard() {
                 if (active) {
                     setMachines(data);
                     setError(null);
+                    setUpdatedAt(new Date());
                 }
             } catch (err) {
                 if (active) {
@@ -48,110 +62,159 @@ function InnerDashboard() {
         };
     }, []);
 
+    const stateCounts = Object.fromEntries(STATES.map(key => [key, 0])) as Record<MachineState, number>;
+    machines.forEach(machine => stateCounts[getMachineState(machine)]++);
+    const onlineCount = stateCounts.online + stateCounts.alert;
+
     const reportingMetrics = machines.flatMap(machine =>
         machine.metrics ? [machine.metrics] : []
     );
-    const onlineCount = machines.filter(machine =>
-        ["online", "alert"].includes(getMachineState(machine))
-    ).length;
+    const average = (values: number[]) =>
+        values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
+    const averageCpu = average(reportingMetrics.map(metrics => metrics.cpuUsage));
+    const averageRam = average(reportingMetrics.map(metrics => metrics.ramUsed / metrics.ramTotal * 100));
+    const averageLatency = average(reportingMetrics.flatMap(metrics =>
+        metrics.latencyMs === null ? [] : [metrics.latencyMs]
+    ));
+
     const query = search.trim().toLowerCase();
     const visibleMachines = machines.filter(machine =>
         (!department || machine.department.toLowerCase() === department.toLowerCase())
         && (!state || getMachineState(machine) === state)
         && (!query || (query.startsWith("#")
-            ? `#${machine.id}` === query
+            ? Number(query.slice(1)) === machine.id
             : [String(machine.id), machine.hostname, machine.ipAddress]
                 .some(value => value.toLowerCase().includes(query))))
     );
-    const averageCpu = reportingMetrics.length
-        ? reportingMetrics.reduce((sum, metrics) => sum + metrics.cpuUsage, 0) / reportingMetrics.length
-        : null;
-    const latencies = reportingMetrics.flatMap(metrics =>
-        metrics.latencyMs === null ? [] : [metrics.latencyMs]
-    );
-    const averageLatency = latencies.length
-        ? latencies.reduce((sum, latency) => sum + latency, 0) / latencies.length
-        : null;
-    const averageRam = reportingMetrics.length
-        ? reportingMetrics.reduce((sum, metrics) => sum + metrics.ramUsed / metrics.ramTotal, 0) / reportingMetrics.length * 100
-        : null;
-    const dashboardStats = [
-        {
-            label: "Machines online",
-            value: `${onlineCount} / ${machines.length}`,
-        },
-        {
-            label: "Average CPU",
-            value: averageCpu === null ? "—" : `${averageCpu.toFixed(1)}%`,
-        },
-        {
-            label: "Average memory",
-            value: averageRam === null ? "—" : `${averageRam.toFixed(1)}%`,
-        },
-        {
-            label: "Average latency",
-            value: averageLatency === null ? "—" : `${averageLatency.toFixed(0)} ms`,
-        },
-    ];
+
+    const value = (content: React.ReactNode) =>
+        loading ? <span className="skeleton summary-skeleton" /> : content;
 
     return (
         <main className="machine-dashboard">
-            <section className="dashboard-stats" aria-label="Fleet statistics">
-                {dashboardStats.map(stat => (
-                    <article className="dashboard-stat" key={stat.label}>
-                        <span className="dashboard-stat-label">{stat.label}</span>
+            <header className="dashboard-head">
+                <h1>Dashboard</h1>
+                <span className={error ? "dashboard-feed is-down" : "dashboard-feed"}>
+                    {error ? "Connection lost · retrying" : updatedAt ? `Updated ${updatedAt.toLocaleTimeString()}` : "Connecting…"}
+                </span>
+            </header>
+
+            <section className="summary" aria-label="Fleet statistics">
+                <div className="summary-stats">
+                    <div className="stat">
+                        <span className="stat-label">Online</span>
+                        {value(<strong>{onlineCount}<small>/{machines.length}</small></strong>)}
+                    </div>
+                    <div className="stat">
+                        <span className="stat-label">Avg. CPU</span>
+                        {value(<strong className={loadTone(averageCpu ?? 0)}>{averageCpu === null ? "—" : averageCpu.toFixed(1)}<small>%</small></strong>)}
+                    </div>
+                    <div className="stat">
+                        <span className="stat-label">Avg. memory</span>
+                        {value(<strong className={loadTone(averageRam ?? 0)}>{averageRam === null ? "—" : averageRam.toFixed(1)}<small>%</small></strong>)}
+                    </div>
+                    <div className="stat">
+                        <span className="stat-label">Avg. latency</span>
+                        {value(<strong>{averageLatency === null ? "—" : averageLatency.toFixed(0)}<small>ms</small></strong>)}
+                    </div>
+                </div>
+            </section>
+
+            <section className="hosts" aria-label="Machines">
+                <div className="hosts-toolbar">
+                    <div className="state-tabs" role="tablist" aria-label="Status">
+                        {(["", ...STATES] as const).map(key => (
+                            <button
+                                key={key}
+                                role="tab"
+                                aria-selected={state === key}
+                                className="state-tab"
+                                onClick={() => setState(key)}
+                            >
+                                {key ? MACHINE_STATE_LABEL[key] : "All"}
+                                <span>{key ? stateCounts[key] : machines.length}</span>
+                            </button>
+                        ))}
+                    </div>
+                    <div className="hosts-filters">
+                        <label className="machine-search">
+                            <Search size={14} aria-hidden="true" />
+                            <input
+                                type="search"
+                                placeholder="#ID, hostname or IP"
+                                aria-label="Search machines"
+                                value={search}
+                                onChange={event => setSearch(event.target.value)}
+                            />
+                        </label>
+                        <select
+                            className="machine-filter"
+                            aria-label="Department"
+                            value={department}
+                            onChange={event => setDepartment(event.target.value)}
+                        >
+                            <option value="">All departments</option>
+                            {DEPARTMENTS.map(name => <option key={name} value={name}>{name}</option>)}
+                        </select>
+                    </div>
+                </div>
+
+                {error && <p className="hosts-error" role="alert">{error}. Showing last known data.</p>}
+
+                <table className="host-table">
+                    <thead>
+                        <tr>
+                            <th>Host</th>
+                            <th>Status</th>
+                            <th>Department</th>
+                            <th>IP address</th>
+                            <th className="num">CPU</th>
+                            <th className="num">Memory</th>
+                            <th className="num">Latency</th>
+                            <th className="num">Reported</th>
+                        </tr>
+                    </thead>
+                    <tbody>
                         {loading
-                            ? <span className="skeleton dashboard-stat-skeleton" />
-                            : <strong>{stat.value}</strong>}
-                    </article>
-                ))}
-                {error && (
-                    <article className="dashboard-stat dashboard-stat-error" role="alert">
-                        <span className="dashboard-stat-label">Data connection</span>
-                        <strong>Error</strong>
-                        <span className="dashboard-stat-detail">{error} · retrying</span>
-                    </article>
-                )}
-            </section>
-            <section className="machine-filters" aria-label="Filter machines">
-                <input
-                    type="search"
-                    className="machine-search"
-                    placeholder="Search by #ID, hostname or IP"
-                    aria-label="Search machines"
-                    value={search}
-                    onChange={event => setSearch(event.target.value)}
-                />
-                <select
-                    className="machine-filter"
-                    aria-label="Department"
-                    value={department}
-                    onChange={event => setDepartment(event.target.value)}
-                >
-                    <option value="">All departments</option>
-                    {DEPARTMENTS.map(name => <option key={name} value={name}>{name}</option>)}
-                </select>
-                <select
-                    className="machine-filter"
-                    aria-label="Status"
-                    value={state}
-                    onChange={event => setState(event.target.value as MachineState | "")}
-                >
-                    <option value="">All statuses</option>
-                    {(Object.keys(MACHINE_STATE_LABEL) as MachineState[]).map(key => (
-                        <option key={key} value={key}>{MACHINE_STATE_LABEL[key]}</option>
-                    ))}
-                </select>
-            </section>
-            <section className="machine-stat-grid" aria-label="Statistics for each machine">
-                {loading
-                    ? [0, 1, 2].map(i => <div key={i} className="skeleton machine-card-skeleton" />)
-                    : visibleMachines.map(machine => (
-                        <MachineCard key={machine.id} machine={machine} />
-                    ))}
-                {!loading && !error && visibleMachines.length === 0 && (
-                    <p className="machine-grid-empty">
-                        {machines.length ? "No machines match your filters." : "No machines registered yet."}
+                            ? [0, 1, 2, 3].map(i => (
+                                <tr key={i}><td colSpan={8}><span className="skeleton row-skeleton" /></td></tr>
+                            ))
+                            : visibleMachines.map(machine => {
+                                const machineState = getMachineState(machine);
+                                const metrics = machine.metrics;
+                                const ramPercent = metrics ? metrics.ramUsed / metrics.ramTotal * 100 : 0;
+                                return (
+                                    <tr key={machine.id} className={`is-${machineState}`}>
+                                        <td className="host-cell">
+                                            <strong>{machine.hostname}</strong>
+                                            <span>#{machine.id} · {machine.type}</span>
+                                        </td>
+                                        <td className="status-cell">
+                                            <span className={`status is-${machineState}`}>{MACHINE_STATE_LABEL[machineState]}</span>
+                                        </td>
+                                        <td className="dept-cell">{machine.department}</td>
+                                        <td className="ip-cell">{machine.ipAddress}</td>
+                                        <td className="num metric-cell" data-label="CPU">
+                                            {metrics ? <><Meter percent={metrics.cpuUsage} /><span className={loadTone(metrics.cpuUsage)}>{metrics.cpuUsage.toFixed(0)}%</span></> : <span className="muted">—</span>}
+                                        </td>
+                                        <td className="num metric-cell" data-label="Memory" title={metrics ? `${(metrics.ramUsed / 1024).toFixed(1)} / ${(metrics.ramTotal / 1024).toFixed(1)} GB` : undefined}>
+                                            {metrics ? <><Meter percent={ramPercent} /><span className={loadTone(ramPercent)}>{ramPercent.toFixed(0)}%</span></> : <span className="muted">—</span>}
+                                        </td>
+                                        <td className="num" data-label="Latency">
+                                            {metrics?.latencyMs == null ? <span className="muted">—</span> : `${metrics.latencyMs.toFixed(0)} ms`}
+                                        </td>
+                                        <td className="num muted" data-label="Reported">
+                                            {metrics ? new Date(metrics.reportedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—"}
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                    </tbody>
+                </table>
+
+                {!loading && visibleMachines.length === 0 && (
+                    <p className="hosts-empty">
+                        {machines.length ? "No machines match these filters." : "No machines registered yet."}
                     </p>
                 )}
             </section>
