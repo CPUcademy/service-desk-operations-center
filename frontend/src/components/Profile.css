@@ -10,55 +10,59 @@
 }
 
 .profile-page h1 {
-  margin: 0 0 26px;
+  margin: 0 0 20px;
   font-size: 28px;
   font-weight: 800;
   letter-spacing: -0.5px;
 }
 
+.profile-page h2 {
+  margin: 8px 0 0;
+  font-size: 14px;
+  font-weight: 800;
+}
+
 .profile-form {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 12px;
 }
 
 .profile-field {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 5px;
   flex: 1;
   min-width: 0;
 }
 
 .profile-field label {
   color: #747b86;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 800;
-  letter-spacing: 2px;
+  letter-spacing: 1.5px;
 }
 
-.profile-field input,
-.profile-field select {
+.profile-field input {
   width: 100%;
-  height: 46px;
-  padding: 0 16px;
+  height: 38px;
+  padding: 0 12px;
   box-sizing: border-box;
 
   background: #f1f2f4;
   border: 1px solid #e5e6e9;
-  border-radius: 12px;
+  border-radius: 10px;
 
   color: #031632;
   font-family: inherit;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
 
   outline: none;
   transition: border-color 0.2s;
 }
 
-.profile-field input:focus,
-.profile-field select:focus {
+.profile-field input:focus {
   border-color: #031632;
 }
 
@@ -72,15 +76,15 @@
 }
 
 .profile-field .profile-password input {
-  padding-right: 48px;
+  padding-right: 42px;
 }
 
 .profile-password-toggle {
   position: absolute;
   top: 0;
-  right: 14px;
+  right: 12px;
   width: 24px;
-  height: 46px;
+  height: 38px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -95,30 +99,23 @@
   color: #031632;
 }
 
-.profile-divider {
-  width: 100%;
-  height: 1px;
-  background: #e5e6e9;
-  margin: 10px 0 0;
-}
-
 .password-fields {
   display: flex;
-  gap: 20px;
+  gap: 12px;
 }
 
 .profile-actions {
   display: flex;
   justify-content: flex-end;
-  margin-top: 20px;
+  margin-top: 4px;
 }
 
 .profile-save-button {
-  width: 170px;
-  height: 46px;
+  width: 140px;
+  height: 38px;
 
   border: none;
-  border-radius: 12px;
+  border-radius: 10px;
 
   background: #031632;
   color: white;
@@ -141,9 +138,7 @@
 }
 
 .profile-logout {
-  margin-top: 24px;
-  padding-top: 16px;
-  border-top: 1px solid #e5e6e9;
+  margin-top: 12px;
   display: flex;
   justify-content: flex-end;
 }
@@ -153,8 +148,9 @@
   border: 1px solid #dc2626;
   color: #dc2626;
   border-radius: 10px;
-  padding: 10px 18px;
-  font-size: 12px;
+  width: 140px;
+  height: 38px;
+  font-size: 13px;
   font-weight: 700;
   cursor: pointer;
 }
@@ -187,7 +183,7 @@
 
 .profile-readonly-fields {
   display: flex;
-  gap: 20px;
+  gap: 12px;
   width: 100%;
 }
 
@@ -199,6 +195,6 @@
 @media (max-width: 700px) {
   .profile-readonly-fields {
     flex-direction: column;
-    gap: 20px;
+    gap: 12px;
   }
 }

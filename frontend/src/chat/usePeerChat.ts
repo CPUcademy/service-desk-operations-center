@@ -1,7 +1,28 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { SIGNAL_URL } from "../config";
 
-const ICE: RTCConfiguration = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
+const TURN_URL = import.meta.env.VITE_TURN_URL as string | undefined;
+
+const ICE: RTCConfiguration = {
+  iceServers: [
+    { urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302", "stun:stun.cloudflare.com:3478"] },
+    ...(TURN_URL
+      ? [{
+          urls: TURN_URL.split(",").map((url) => url.trim()),
+          username: import.meta.env.VITE_TURN_USERNAME as string | undefined,
+          credential: import.meta.env.VITE_TURN_CREDENTIAL as string | undefined,
+        }]
+      : []),
+  ],
+};
+
+const MAX_PENDING_ICE = 50;
+
+function describeCandidate(candidate: string) {
+  const parts = candidate.split(" ");
+  const type = parts[parts.indexOf("typ") + 1] ?? "?";
+  return `${type} ${parts[2] ?? "?"} ${parts[4] ?? "?"}`;
+}
 
 export type ChatMessage = { id: number; fromMe: boolean; text: string; at: number };
 export type PeerStatus = "idle" | "connecting" | "connected" | "unavailable" | "disconnected";
@@ -25,6 +46,15 @@ export function usePeerChat() {
   const pc = useRef<RTCPeerConnection | null>(null);
   const channel = useRef<RTCDataChannel | null>(null);
   const peerRef = useRef<number | null>(null);
+  const pendingIce = useRef(new Map<number, RTCIceCandidateInit[]>());
+
+  const flushIce = useCallback(async (from: number, conn: RTCPeerConnection) => {
+    const queued = pendingIce.current.get(from) ?? [];
+    pendingIce.current.delete(from);
+    for (const candidate of queued) {
+      await conn.addIceCandidate(candidate).catch((e) => console.warn("stale ICE candidate", e));
+    }
+  }, []);
 
   const addMessage = useCallback((fromMe: boolean, text: string) => {
     setMessages((m) => [...m, { id: nextMessageId++, fromMe, text, at: Date.now() }]);
@@ -56,8 +86,14 @@ export function usePeerChat() {
     closePeer();
     const conn = new RTCPeerConnection(ICE);
     conn.onicecandidate = (e) => {
-      if (e.candidate) sendSignal({ type: "ice", candidate: e.candidate.toJSON() });
+      if (!e.candidate) {
+        console.log("local candidates: done gathering");
+        return;
+      }
+      console.log("local candidate:", describeCandidate(e.candidate.candidate));
+      sendSignal({ type: "ice", candidate: e.candidate.toJSON() });
     };
+    conn.onicecandidateerror = (e) => console.warn("ICE server error:", e.url, e.errorCode, e.errorText);
     conn.ondatachannel = (e) => setupChannel(e.channel);
     conn.onconnectionstatechange = () => {
       if (pc.current === conn && conn.connectionState === "failed") setStatus("disconnected");
@@ -81,24 +117,40 @@ export function usePeerChat() {
         startConversation(msg.from);
         const conn = createPc();
         await conn.setRemoteDescription(msg.sdp);
+        await flushIce(msg.from, conn);
         await conn.setLocalDescription(await conn.createAnswer());
         sendSignal({ type: "answer", sdp: conn.localDescription });
         break;
       }
-      case "answer":
-        if (msg.from === peerRef.current) await pc.current?.setRemoteDescription(msg.sdp);
+      case "answer": {
+        const conn = pc.current;
+        if (msg.from !== peerRef.current || !conn) break;
+        await conn.setRemoteDescription(msg.sdp);
+        await flushIce(msg.from, conn);
         break;
-      case "ice":
-        if (msg.from === peerRef.current) await pc.current?.addIceCandidate(msg.candidate);
+      }
+      case "ice": {
+        if (msg.candidate.candidate) console.log("remote candidate:", describeCandidate(msg.candidate.candidate));
+        const conn = pc.current;
+        if (msg.from === peerRef.current && conn?.remoteDescription) {
+          await conn.addIceCandidate(msg.candidate);
+        } else {
+          const queued = pendingIce.current.get(msg.from) ?? [];
+          if (queued.length < MAX_PENDING_ICE) queued.push(msg.candidate);
+          pendingIce.current.set(msg.from, queued);
+        }
         break;
+      }
       case "hangup":
+        pendingIce.current.delete(msg.from);
         if (msg.from === peerRef.current) { closePeer(); setStatus("disconnected"); }
         break;
       case "unavailable":
+        pendingIce.current.delete(msg.from);
         if (msg.from === peerRef.current) { closePeer(); setStatus("unavailable"); }
         break;
     }
-  }, [closePeer, createPc, sendSignal, startConversation]);
+  }, [closePeer, createPc, flushIce, sendSignal, startConversation]);
 
   useEffect(() => {
     
@@ -123,6 +175,7 @@ export function usePeerChat() {
   }, [handleSignal, sendSignal, closePeer]);
 
   const connect = useCallback(async (to: number) => {
+    pendingIce.current.delete(to);
     startConversation(to);
     const conn = createPc();
     setupChannel(conn.createDataChannel("chat"));

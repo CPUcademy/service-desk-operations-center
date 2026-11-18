@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { apiFetch } from "../api";
 import type { Machine } from "../types/Machine";
@@ -9,45 +9,7 @@ const DESCRIPTION_LIMIT = 255;
 
 type Filter = "open" | "fixed" | "all";
 
-const CARD_HEIGHT = 112;
-const CARD_GAP = 10;
-const PAGINATION_SPACE = 34 + 16;
-const BOTTOM_SPACE = 24;
-
-function documentTop(element: HTMLElement) {
-  let top = 0;
-  for (let node: HTMLElement | null = element; node; node = node.offsetParent as HTMLElement | null) {
-    top += node.offsetTop;
-  }
-  return top;
-}
-
-function useFittingPageSize(listRef: React.RefObject<HTMLDivElement | null>) {
-  const [size, setSize] = useState(5);
-
-  useLayoutEffect(() => {
-    const list = listRef.current;
-    if (!list) return;
-
-    const measure = () => {
-      const available = window.innerHeight - documentTop(list) - PAGINATION_SPACE - BOTTOM_SPACE;
-      setSize(Math.max(1, Math.floor((available + CARD_GAP) / (CARD_HEIGHT + CARD_GAP))));
-    };
-
-    measure();
-    // Content above the list can grow (form messages, a resized textarea), pushing it down
-    const observer = new ResizeObserver(measure);
-    const page = list.closest(".tickets-page");
-    if (page) observer.observe(page);
-    window.addEventListener("resize", measure);
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("resize", measure);
-    };
-  }, [listRef]);
-
-  return size;
-}
+const PAGE_SIZE = 5;
 
 function pageNumbers(current: number, total: number): (number | "…")[] {
   if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
@@ -246,8 +208,6 @@ function Tickets() {
   const [closing, setClosing] = useState<number | null>(null);
   const [cooked, setCooked] = useState(readCooked);
   const [page, setPage] = useState(1);
-  const listRef = useRef<HTMLDivElement>(null);
-  const pageSize = useFittingPageSize(listRef);
 
   function toggleCooked() {
     setCooked(current => {
@@ -293,9 +253,9 @@ function Tickets() {
     .sort(byUrgency);
   const openCount = tickets.filter(t => !t.isFixed).length;
 
-  const pageCount = Math.max(1, Math.ceil(visible.length / pageSize));
+  const pageCount = Math.max(1, Math.ceil(visible.length / PAGE_SIZE));
   const currentPage = Math.min(page, pageCount);
-  const pageTickets = visible.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const pageTickets = visible.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   function changeFilter(value: Filter) {
     setFilter(value);
@@ -335,10 +295,10 @@ function Tickets() {
 
         {error && <p className="ticket-message error" role="alert">{error}</p>}
 
-        <div ref={listRef}>
+        <div>
         {loading ? (
           <div className="ticket-list">
-            {Array.from({ length: Math.min(pageSize, 3) }, (_, i) => <div key={i} className="skeleton ticket-skeleton" />)}
+            {Array.from({ length: Math.min(PAGE_SIZE, 3) }, (_, i) => <div key={i} className="skeleton ticket-skeleton" />)}
           </div>
         ) : visible.length === 0 ? (
           <p className="ticket-empty">
@@ -389,7 +349,7 @@ function Tickets() {
               onClick={() => setPage(currentPage - 1)}
               disabled={currentPage === 1}
             >
-              ‹ Prev
+              <span aria-hidden="true">‹</span> Prev
             </button>
 
             {pageNumbers(currentPage, pageCount).map((item, index) =>
@@ -413,7 +373,7 @@ function Tickets() {
               onClick={() => setPage(currentPage + 1)}
               disabled={currentPage === pageCount}
             >
-              Next ›
+              Next <span aria-hidden="true">›</span>
             </button>
           </nav>
         )}

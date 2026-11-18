@@ -84,7 +84,6 @@ function Login() {
                 <div className="hero-content">
                     <h2 className="hero-brand">IT helpdesk</h2>
                     <h1 className="hero-title">Service Desk Operations Center</h1>
-                    <h2 className="hero-subtitle">Monitor every workstation in real time, report issues and get help from IT — all in one place.</h2>
                 </div>
             </aside>
 

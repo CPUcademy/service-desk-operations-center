@@ -9,9 +9,11 @@ import com.sdoc.sdoc.service.tokens.TokenRevocationService;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -21,6 +23,12 @@ public class UserController {
     private final UserService userService;
     private final AuthService authService;
     private final TokenRevocationService tokenRevocationService;
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping
+    public List<UserDataDto> getAll() {
+        return userService.getAll();
+    }
 
     @GetMapping("/me")
     public UserDataDto me(Authentication authentication) {
