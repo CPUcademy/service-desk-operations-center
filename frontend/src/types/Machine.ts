@@ -16,6 +16,9 @@ export interface MachineMetrics {
     reportedAt: string;
 }
 
+export const DEPARTMENTS = ["Finance", "Sales", "IT", "HR", "Management"];
+export const MACHINE_TYPES = ["Workstation", "Laptop", "Server"];
+
 export type MachineState = "online" | "alert" | "maintenance" | "offline";
 
 export const MACHINE_STATE_LABEL: Record<MachineState, string> = {
