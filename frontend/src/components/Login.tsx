@@ -82,15 +82,15 @@ function Login() {
         <div className="login-page">
             <aside className="login-hero">
                 <div className="hero-content">
-                    <h2 className="hero-brand">IT help panel</h2>
-                    <h1 className="hero-title">SDOC Lorem ipsum lorem</h1>
-                    <h2 className="hero-subtitle">jajo bajo bajo jajo</h2>
+                    <h2 className="hero-brand">IT helpdesk</h2>
+                    <h1 className="hero-title">Service Desk Operations Center</h1>
+                    <h2 className="hero-subtitle">Monitor every workstation in real time, report issues and get help from IT — all in one place.</h2>
                 </div>
             </aside>
 
             <main className="login-main">
                 <div className="login-card">
-                    <h2 className="login-brand">IT help panel</h2>
+                    <h2 className="login-brand">IT helpdesk</h2>
 
                     <h2 className="login-title">
                         <b>Log In</b>

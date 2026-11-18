@@ -1,10 +1,8 @@
 import { useEffect, useState } from "react";
 import MachineCard from "./MachineCard";
-import { getMachineState, MACHINE_STATE_LABEL, type Machine, type MachineState } from "../types/Machine";
+import { DEPARTMENTS, getMachineState, MACHINE_STATE_LABEL, type Machine, type MachineState } from "../types/Machine";
 import { apiFetch } from "../api";
 import "./InnerDashboard.css";
-
-const DEPARTMENTS = ["Finance", "Sales", "IT", "HR", "Management"];
 
 function InnerDashboard() {
     const [search, setSearch] = useState("");

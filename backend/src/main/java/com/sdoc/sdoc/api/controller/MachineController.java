@@ -1,5 +1,6 @@
 package com.sdoc.sdoc.api.controller;
 
+import com.sdoc.sdoc.api.dto.CreateMachineRequestDto;
 import com.sdoc.sdoc.api.dto.MachineDto;
 import com.sdoc.sdoc.service.MachineService;
 import lombok.RequiredArgsConstructor;
@@ -18,5 +19,11 @@ public class MachineController {
     @GetMapping
     public List<MachineDto> getAll() {
         return machineService.getAll();
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping
+    public MachineDto create(@RequestBody CreateMachineRequestDto body) {
+        return machineService.create(body);
     }
 }
