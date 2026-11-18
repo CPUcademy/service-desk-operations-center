@@ -1,14 +1,28 @@
-import { useState, type SubmitEvent } from "react";
+import { useEffect, useState, type SubmitEvent } from "react";
 import { apiFetch } from "../api";
 import { DEPARTMENTS, MACHINE_TYPES } from "../types/Machine";
 import "./Tickets.css";
 
-const EMPTY = { hostname: "", ipAddress: "", type: MACHINE_TYPES[0], department: DEPARTMENTS[0] };
+const EMPTY = { hostname: "", ipAddress: "", type: MACHINE_TYPES[0], department: DEPARTMENTS[0], ownerId: "" };
+
+interface Owner {
+  id: number;
+  fullName: string;
+  email: string;
+}
 
 function Admin() {
   const [form, setForm] = useState(EMPTY);
   const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
   const [saving, setSaving] = useState(false);
+  const [owners, setOwners] = useState<Owner[]>([]);
+
+  useEffect(() => {
+    apiFetch("/api/v1/users")
+      .then(response => (response.ok ? response.json() : []))
+      .then(setOwners)
+      .catch(() => setOwners([]));
+  }, []);
 
   function update(field: keyof typeof EMPTY, value: string) {
     setForm(prev => ({ ...prev, [field]: value }));
@@ -22,7 +36,12 @@ function Admin() {
       const response = await apiFetch("/api/v1/machines", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, hostname: form.hostname.trim(), ipAddress: form.ipAddress.trim() }),
+        body: JSON.stringify({
+          ...form,
+          hostname: form.hostname.trim(),
+          ipAddress: form.ipAddress.trim(),
+          ownerId: Number(form.ownerId),
+        }),
       });
       const body = await response.json().catch(() => null);
       if (!response.ok) throw new Error(body?.message ?? "Failed to add machine.");
@@ -80,6 +99,16 @@ function Admin() {
               {DEPARTMENTS.map(name => <option key={name}>{name}</option>)}
             </select>
           </div>
+        </div>
+
+        <div className="ticket-field">
+          <label htmlFor="owner">OWNER</label>
+          <select id="owner" value={form.ownerId} onChange={event => update("ownerId", event.target.value)} required>
+            <option value="" disabled>Select a user</option>
+            {owners.map(owner => (
+              <option key={owner.id} value={owner.id}>{owner.fullName} ({owner.email})</option>
+            ))}
+          </select>
         </div>
 
         <div className="ticket-form-footer">

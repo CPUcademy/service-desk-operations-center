@@ -7,6 +7,7 @@ import com.sdoc.sdoc.api.dto.MachineDto;
 import com.sdoc.sdoc.api.dto.MachineMetricsDto;
 import com.sdoc.sdoc.persistance.entity.Machine;
 import com.sdoc.sdoc.persistance.repository.MachineRepository;
+import com.sdoc.sdoc.persistance.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
@@ -26,6 +27,7 @@ public class MachineService {
     private static final String IPV4_PATTERN = "^((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)\\.){3}(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)$";
     private static final Duration METRICS_TTL = Duration.ofSeconds(10);
     private final MachineRepository machineRepository;
+    private final UserRepository userRepository;
     private final Cache<Long, MachineMetricsDto> metrics = Caffeine.newBuilder()
             .expireAfterWrite(METRICS_TTL).maximumSize(10_000).build();
 
@@ -53,7 +55,11 @@ public class MachineService {
                 || dto.hostname() == null || !dto.hostname().matches(HOSTNAME_PATTERN)
                 || dto.ipAddress() == null || !dto.ipAddress().matches(IPV4_PATTERN))
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid machine data");
+        if (dto.ownerId() == null)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Owner is required");
         Machine machine = new Machine();
+        machine.setOwner(userRepository.findById(dto.ownerId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Owner not found")));
         machine.setType(dto.type());
         machine.setDepartment(dto.department());
         machine.setHostname(dto.hostname());
