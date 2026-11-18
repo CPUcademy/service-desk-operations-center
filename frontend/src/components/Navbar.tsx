@@ -1,8 +1,16 @@
 
 import { NavLink } from "react-router-dom";
 import { useState } from "react";
+import { LayoutGrid, Menu, MessageSquare, ShieldCheck, Ticket, X } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
 import "./Navbar.css";
+
+const links = [
+  { to: "/dashboard", label: "Dashboard", icon: LayoutGrid, admin: true },
+  { to: "/tickets", label: "Tickets", icon: Ticket, admin: false },
+  { to: "/chat", label: "Chat", icon: MessageSquare, admin: false },
+  { to: "/admin", label: "Admin", icon: ShieldCheck, admin: true },
+];
 
 function Navbar() {
   const { user } = useAuth();
@@ -31,7 +39,7 @@ function Navbar() {
         aria-label="Otwórz menu"
         aria-expanded={isOpen}
       >
-        ☰
+        <Menu size={18} />
       </button>
 
       {/* Przyciemnione tło */}
@@ -52,65 +60,27 @@ function Navbar() {
             onClick={closeMenu}
             aria-label="Zamknij menu"
           >
-            ✕
+            <X size={16} />
           </button>
         </div>
 
-        {/* Linki */}
+        <div className="navbar-brand">
+          <strong>SDOC</strong>
+          <span>Service desk operations</span>
+        </div>
+
         <nav className="navbar-links">
-
-          {isAdmin && (
+          {links.filter(link => isAdmin || !link.admin).map(link => (
             <NavLink
-              to="/dashboard"
+              key={link.to}
+              to={link.to}
               onClick={closeMenu}
-              className={({ isActive }) =>
-                isActive
-                  ? "navbar-link active"
-                  : "navbar-link"
-              }
+              className={({ isActive }) => isActive ? "navbar-link active" : "navbar-link"}
             >
-              Dashboard
+              <link.icon size={16} strokeWidth={1.75} />
+              {link.label}
             </NavLink>
-          )}
-
-          <NavLink
-            to="/chat"
-            onClick={closeMenu}
-            className={({ isActive }) =>
-              isActive
-                ? "navbar-link active"
-                : "navbar-link"
-            }
-          >
-            Chat
-          </NavLink>
-
-          <NavLink
-            to="/tickets"
-            onClick={closeMenu}
-            className={({ isActive }) =>
-              isActive
-                ? "navbar-link active"
-                : "navbar-link"
-            }
-          >
-            Tickets
-          </NavLink>
-
-          {isAdmin && (
-            <NavLink
-              to="/admin"
-              onClick={closeMenu}
-              className={({ isActive }) =>
-                isActive
-                  ? "navbar-link active"
-                  : "navbar-link"
-              }
-            >
-              Admin
-            </NavLink>
-          )}
-
+          ))}
         </nav>
 
         {/* Profil użytkownika */}
@@ -130,7 +100,7 @@ function Navbar() {
               </p>
 
               <span>
-                {isAdmin ? "ADMINISTRATOR" : "USER"}
+                {isAdmin ? "Administrator" : "User"}
               </span>
             </div>
           </NavLink>

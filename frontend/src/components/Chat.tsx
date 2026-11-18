@@ -74,10 +74,7 @@ function Chat() {
     <div className="chat-page">
       <aside className="chat-sidebar">
         <div className="chat-sidebar-header">
-          <div>
-            <h2>Chat</h2>
-            <p>Your conversations</p>
-          </div>
+          <h2>Chat</h2>
 
           <button
             className="chat-new-button"
@@ -89,7 +86,7 @@ function Chat() {
             disabled={!signalReady}
             title="New conversation"
           >
-            {newChat ? <X size={19} /> : <Plus size={19} />}
+            {newChat ? <X size={16} /> : <Plus size={16} />}
           </button>
         </div>
 
@@ -98,7 +95,7 @@ function Chat() {
             <h3>New conversation</h3>
 
             <div className="chat-search">
-              <Search size={17} />
+              <Search size={14} />
               <input
                 autoFocus
                 value={newUser}
@@ -121,7 +118,7 @@ function Chat() {
         {!newChat && (
           <>
             <div className="chat-search">
-              <Search size={17} />
+              <Search size={14} />
               <input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
@@ -191,7 +188,6 @@ function Chat() {
         <div className="chat-messages">
           {peerId === null ? (
             <div className="chat-welcome">
-              <h3>Your conversations</h3>
               <p>Select a conversation or start a new one.</p>
             </div>
           ) : messages.length === 0 ? (
@@ -221,7 +217,7 @@ function Chat() {
           />
 
           <button type="submit" disabled={!connected || !text.trim()}>
-            <Send size={18} />
+            <Send size={16} />
           </button>
         </form>
       </main>
