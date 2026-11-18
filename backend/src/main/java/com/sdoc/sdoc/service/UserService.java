@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.List;
 import java.util.Map;
 
 @Service
@@ -24,6 +25,12 @@ public class UserService {
     private final BCryptPasswordEncoder passwordEncoder;
     private final RateLimitService rateLimitService;
     private final InputValidationService inputValidationService;
+
+    public List<UserDataDto> getAll() {
+        return userRepository.findAll(org.springframework.data.domain.Sort.by("fullName")).stream()
+                .map(user -> new UserDataDto(user.getId(), user.getFullName(), user.getEmail(), user.getIsAdmin()))
+                .toList();
+    }
 
     public UserDataDto getProfile(Long userId) {
         User user = findUser(userId);

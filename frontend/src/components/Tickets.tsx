@@ -349,7 +349,7 @@ function Tickets() {
               onClick={() => setPage(currentPage - 1)}
               disabled={currentPage === 1}
             >
-              ‹ Prev
+              <span aria-hidden="true">‹</span> Prev
             </button>
 
             {pageNumbers(currentPage, pageCount).map((item, index) =>
@@ -373,7 +373,7 @@ function Tickets() {
               onClick={() => setPage(currentPage + 1)}
               disabled={currentPage === pageCount}
             >
-              Next ›
+              Next <span aria-hidden="true">›</span>
             </button>
           </nav>
         )}
