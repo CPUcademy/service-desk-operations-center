@@ -92,4 +92,9 @@ public class MachineService {
     private static boolean isNotFinite(Double value) {
         return value == null || !Double.isFinite(value);
     }
+
+    @Transactional(readOnly = true)
+    public List<MachineDto> getMachinesByOwnerId(Long ownerId) {
+        return machineRepository.findByOwnerId(ownerId).stream().map(this::convertToDto).toList();
+    }
 }
