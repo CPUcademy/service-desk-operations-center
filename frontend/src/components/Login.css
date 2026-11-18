@@ -13,7 +13,10 @@
     justify-content: space-between;
     width: 44%;
     padding: 48px 56px;
-    background: var(--navy);
+    background:
+        linear-gradient(120deg, #031632f0, #031632a6),
+        url("https://www.hdhotels.com/data/webp/4.lasarenas183-281e56b2e847f9c72249acbd88e98bcd.webp")
+        center / cover no-repeat var(--navy);
     color: #fff;
 }
 
