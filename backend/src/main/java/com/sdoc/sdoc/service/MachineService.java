@@ -24,14 +24,19 @@ public class MachineService {
     private final Cache<Long, MachineMetricsDto> metrics = Caffeine.newBuilder()
             .expireAfterWrite(METRICS_TTL).maximumSize(10_000).build();
 
+    private static String liveStatus(String storedStatus, MachineMetricsDto latest) {
+        if ("maintenance".equalsIgnoreCase(storedStatus)) return storedStatus;
+        return latest != null ? "online" : "offline";
+    }
+
     private MachineDto convertToDto(Machine m) {
-        return new MachineDto(m.getId(), m.getType(), m.getDepartment(), m.getStatus(), m.getHostname(),
-                        m.getIpAddress(), metrics.getIfPresent(m.getId()));
+        MachineMetricsDto latest = metrics.getIfPresent(m.getId());
+        return new MachineDto(m.getId(), m.getType(), m.getDepartment(), liveStatus(m.getStatus(), latest),
+                            m.getHostname(), m.getIpAddress(), latest);
     }
 
     public List<MachineDto> getAll() {
-        return machineRepository.findAll(Sort.by("id")).stream()
-                .map(this::convertToDto).toList();
+        return machineRepository.findAll(Sort.by("id")).stream().map(this::convertToDto).toList();
     }
 
     public MachineDto getMachineById(long machineId) {
