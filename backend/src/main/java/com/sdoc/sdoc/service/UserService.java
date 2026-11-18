@@ -51,6 +51,14 @@ public class UserService {
         refreshTokenRepository.deleteByUserId(userId);
         return user;
     }
+    @Transactional
+    public UserDataDto updateFullName(Long userId, String fullName) {
+        String error = inputValidationService.validateFullName(fullName);
+        if (error != null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, error);
+        User user = findUser(userId);
+        user.setFullName(fullName.trim());
+        return getProfile(userRepository.save(user).getId());
+    }
 
     private User findUser(Long userId) {
         return userRepository.findById(userId)
