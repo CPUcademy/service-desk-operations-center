@@ -107,7 +107,7 @@
 .machine-filter {
   height: 40px;
   padding: 0 12px;
-  background: #fff;
+  background-color: #fff;
   border: 1px solid #e5e9f0;
   border-radius: 10px;
   color: #031632;
@@ -124,6 +124,7 @@
 .machine-filter {
   flex: 0 1 180px;
   min-width: 0;
+  padding-right: 38px;
   cursor: pointer;
 }
 

@@ -63,7 +63,7 @@
   width: 100%;
   box-sizing: border-box;
   padding: 0 12px;
-  background: #f1f2f4;
+  background-color: #f1f2f4;
   border: 1px solid #e5e6e9;
   border-radius: 10px;
   color: #031632;
@@ -77,6 +77,10 @@
 .ticket-field input,
 .ticket-field select {
   height: 38px;
+}
+
+.ticket-field select {
+  padding-right: 38px;
 }
 
 .ticket-field textarea {

@@ -9,7 +9,7 @@ const DESCRIPTION_LIMIT = 255;
 
 type Filter = "open" | "fixed" | "all";
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 5;
 
 function pageNumbers(current: number, total: number): (number | "…")[] {
   if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);

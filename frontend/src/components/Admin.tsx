@@ -1,13 +1,13 @@
 import { useState, type SubmitEvent } from "react";
 import { apiFetch } from "../api";
 import { DEPARTMENTS, MACHINE_TYPES } from "../types/Machine";
-import "./Profile.css";
+import "./Tickets.css";
 
 const EMPTY = { hostname: "", ipAddress: "", type: MACHINE_TYPES[0], department: DEPARTMENTS[0] };
 
 function Admin() {
   const [form, setForm] = useState(EMPTY);
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
   const [saving, setSaving] = useState(false);
 
   function update(field: keyof typeof EMPTY, value: string) {
@@ -16,7 +16,7 @@ function Admin() {
 
   async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
-    setMessage("");
+    setMessage(null);
     setSaving(true);
     try {
       const response = await apiFetch("/api/v1/machines", {
@@ -27,20 +27,21 @@ function Admin() {
       const body = await response.json().catch(() => null);
       if (!response.ok) throw new Error(body?.message ?? "Failed to add machine.");
       setForm(EMPTY);
-      setMessage(`Machine #${body.id} added. Set MachineId to ${body.id} in the worker on that computer.`);
+      setMessage({ text: `Machine #${body.id} added. Set MachineId to ${body.id} in the worker on that computer.`, error: false });
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Failed to add machine.");
+      setMessage({ text: error instanceof Error ? error.message : "Failed to add machine.", error: true });
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <div className="profile-page">
-      <h1>Add machine</h1>
-      <form className="profile-form" onSubmit={handleSubmit}>
-        <div className="password-fields">
-          <div className="profile-field">
+    <div className="tickets-page">
+      <h1>Admin</h1>
+      <form className="ticket-form" onSubmit={handleSubmit}>
+        <h2>Add machine</h2>
+        <div className="ticket-form-row">
+          <div className="ticket-field">
             <label htmlFor="hostname">HOSTNAME</label>
             <input
               id="hostname"
@@ -51,7 +52,7 @@ function Admin() {
               required
             />
           </div>
-          <div className="profile-field">
+          <div className="ticket-field">
             <label htmlFor="ipAddress">IP ADDRESS</label>
             <input
               id="ipAddress"
@@ -66,14 +67,14 @@ function Admin() {
           </div>
         </div>
 
-        <div className="password-fields">
-          <div className="profile-field">
+        <div className="ticket-form-row">
+          <div className="ticket-field">
             <label htmlFor="type">TYPE</label>
             <select id="type" value={form.type} onChange={event => update("type", event.target.value)}>
               {MACHINE_TYPES.map(type => <option key={type}>{type}</option>)}
             </select>
           </div>
-          <div className="profile-field">
+          <div className="ticket-field">
             <label htmlFor="department">DEPARTMENT</label>
             <select id="department" value={form.department} onChange={event => update("department", event.target.value)}>
               {DEPARTMENTS.map(name => <option key={name}>{name}</option>)}
@@ -81,10 +82,13 @@ function Admin() {
           </div>
         </div>
 
-        {message && <p className="profile-message" role="status">{message}</p>}
-
-        <div className="profile-actions">
-          <button type="submit" className="profile-save-button" disabled={saving}>
+        <div className="ticket-form-footer">
+          {message && (
+            <p className={`ticket-message ${message.error ? "error" : ""}`} role={message.error ? "alert" : "status"}>
+              {message.text}
+            </p>
+          )}
+          <button type="submit" className="ticket-submit" disabled={saving}>
             {saving ? "Adding…" : "Add machine"}
           </button>
         </div>
