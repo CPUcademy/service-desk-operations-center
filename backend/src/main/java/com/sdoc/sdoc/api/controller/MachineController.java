@@ -2,9 +2,11 @@ package com.sdoc.sdoc.api.controller;
 
 import com.sdoc.sdoc.api.dto.CreateMachineRequestDto;
 import com.sdoc.sdoc.api.dto.MachineDto;
+import com.sdoc.sdoc.security.utilities.SecurityUtils;
 import com.sdoc.sdoc.service.MachineService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -25,6 +27,11 @@ public class MachineController {
     @GetMapping("/{id}")
     public MachineDto getMachineById(@PathVariable long id) {
         return machineService.getMachineById(id);
+    }
+
+    @GetMapping("/me")
+    public List<MachineDto> getMachinesByOwnerId(Authentication auth) {
+        return machineService.getMachinesByOwnerId(SecurityUtils.getUserId(auth));
     }
 
     @PreAuthorize("hasRole('ADMIN')")
