@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { MonitorPlay, MoreHorizontal, Search } from "lucide-react";
-import { DEPARTMENTS, getMachineState, MACHINE_STATE_LABEL, type Machine, type MachineState } from "../types/Machine";
+import { DEPARTMENTS, MACHINE_TYPES, getMachineState, MACHINE_STATE_LABEL, type Machine, type MachineState } from "../types/Machine";
 import { apiFetch } from "../api";
 import "./InnerDashboard.css";
 
@@ -40,6 +40,104 @@ async function setRemoteControl(machine: Machine, enabled: boolean, confirmHostn
     return body;
 }
 
+type Owner = { id: number; fullName: string; email: string };
+
+function EditMachine({ machine, onSaved, onClose }: { machine: Machine; onSaved: (machine: Machine) => void; onClose: () => void }) {
+    const dialog = useRef<HTMLDialogElement>(null);
+    const [form, setForm] = useState({
+        hostname: machine.hostname,
+        ipAddress: machine.ipAddress,
+        type: machine.type,
+        department: machine.department,
+        ownerId: String(machine.ownerId),
+    });
+    const [owners, setOwners] = useState<Owner[]>([]);
+    const [busy, setBusy] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => { dialog.current?.showModal(); }, []);
+
+    useEffect(() => {
+        apiFetch("/api/v1/users")
+            .then(response => (response.ok ? response.json() : []))
+            .then(setOwners)
+            .catch(() => setOwners([]));
+    }, []);
+
+    const update = (field: keyof typeof form) => (event: ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+        setForm(current => ({ ...current, [field]: event.target.value }));
+
+    async function submit(event: FormEvent<HTMLFormElement>) {
+        event.preventDefault();
+        setBusy(true);
+        setError(null);
+        try {
+            const response = await apiFetch(`/api/v1/machines/${machine.id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ ...form, hostname: form.hostname.trim(), ipAddress: form.ipAddress.trim(), ownerId: Number(form.ownerId) }),
+            });
+            const body = await response.json().catch(() => null);
+            if (!response.ok) throw new Error(body?.message ?? "Failed to save the machine.");
+            onSaved(body);
+            dialog.current?.close();
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Failed to save the machine.");
+        } finally {
+            setBusy(false);
+        }
+    }
+
+    return (
+        <dialog ref={dialog} className="rc-dialog" onClose={onClose}>
+            <form onSubmit={submit}>
+                <h2>Edit machine #{machine.id}</h2>
+                <div className="edit-grid">
+                    <label>
+                        Hostname
+                        <input value={form.hostname} onChange={update("hostname")} maxLength={253} required spellCheck={false} />
+                    </label>
+                    <label>
+                        IP address
+                        <input
+                            value={form.ipAddress}
+                            onChange={update("ipAddress")}
+                            inputMode="decimal"
+                            pattern="(\d{1,3}\.){3}\d{1,3}"
+                            title="IPv4 address, e.g. 192.168.1.20"
+                            required
+                        />
+                    </label>
+                    <label>
+                        Type
+                        <select value={form.type} onChange={update("type")}>
+                            {MACHINE_TYPES.map(type => <option key={type}>{type}</option>)}
+                        </select>
+                    </label>
+                    <label>
+                        Department
+                        <select value={form.department} onChange={update("department")}>
+                            {DEPARTMENTS.map(name => <option key={name}>{name}</option>)}
+                        </select>
+                    </label>
+                    <label className="edit-wide">
+                        Owner
+                        <select value={form.ownerId} onChange={update("ownerId")} required>
+                            {owners.length === 0 && <option value={machine.ownerId}>{machine.ownerFullName}</option>}
+                            {owners.map(owner => <option key={owner.id} value={owner.id}>{owner.fullName} ({owner.email})</option>)}
+                        </select>
+                    </label>
+                </div>
+                {error && <p className="rc-error" role="alert">{error}</p>}
+                <div className="rc-dialog-actions">
+                    <button type="button" onClick={() => dialog.current?.close()}>Cancel</button>
+                    <button type="submit" className="is-primary" disabled={busy}>{busy ? "Saving…" : "Save"}</button>
+                </div>
+            </form>
+        </dialog>
+    );
+}
+
 // Row menu: disabling is one click; enabling needs the hostname typed back (the server checks it too)
 function RowMenu({ machine, onChange }: { machine: Machine; onChange: (machine: Machine) => void }) {
     const [open, setOpen] = useState(false);
@@ -47,6 +145,7 @@ function RowMenu({ machine, onChange }: { machine: Machine; onChange: (machine: 
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [confirming, setConfirming] = useState(false);
+    const [editing, setEditing] = useState(false);
     const dialog = useRef<HTMLDialogElement>(null);
     const matches = typed.trim().toLowerCase() === machine.hostname.toLowerCase();
 
@@ -92,12 +191,16 @@ function RowMenu({ machine, onChange }: { machine: Machine; onChange: (machine: 
             </button>
             {open && (
                 <div className="row-menu-list" role="menu">
+                    <button type="button" role="menuitem" onClick={() => { setOpen(false); setEditing(true); }}>
+                        Edit machine
+                    </button>
                     <button type="button" role="menuitem" className={machine.remoteControl ? "" : "is-danger"} onClick={choose}>
                         {machine.remoteControl ? "Disable remote control" : "Enable remote control"}
                     </button>
                 </div>
             )}
             {error && !confirming && <span className="row-menu-error" role="alert">{error}</span>}
+            {editing && <EditMachine machine={machine} onSaved={onChange} onClose={() => setEditing(false)} />}
 
             <dialog ref={dialog} className="rc-dialog" onClose={() => { setConfirming(false); setTyped(""); }}>
                 <form onSubmit={submit}>
@@ -308,7 +411,7 @@ function InnerDashboard() {
                                         </td>
                                         <td className="session-cell">
                                             <SessionLink machine={machine} />
-                                            <RowMenu machine={machine} onChange={updated => setMachines(current => current.map(m => (m.id === updated.id ? { ...m, remoteControl: updated.remoteControl } : m)))} />
+                                            <RowMenu machine={machine} onChange={updated => setMachines(current => current.map(m => (m.id === updated.id ? updated : m)))} />
                                         </td>
                                     </tr>
                                 );

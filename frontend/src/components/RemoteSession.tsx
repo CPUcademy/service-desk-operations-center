@@ -12,7 +12,10 @@ type FileReply = { type: string; error?: string; path?: string };
 
 const DEFAULT_PATH = "C:\\Users\\Public\\Downloads";
 const FILE_CHUNK = 256 * 1024;
-const OFFLINE: Agent = { online: false, desktop: false, remoteControl: false, agentAllows: false };
+const formatSize = (bytes: number) =>
+  bytes < 1024 ? `${bytes} B` : bytes < 1024 ** 2 ? `${(bytes / 1024).toFixed(0)} KB` : `${(bytes / 1024 ** 2).toFixed(1)} MB`;
+
+const OFFLINE: Agent ={ online: false, desktop: false, remoteControl: false, agentAllows: false };
 
 function RemoteSession() {
   const { id } = useParams();
@@ -207,7 +210,7 @@ function RemoteSession() {
   const controllable = online && agent!.remoteControl && agent!.agentAllows;
   const screenMessage = agent === null ? "Connecting to the agent…"
     : !online ? "The agent on this machine is offline. A session can't be started."
-    : !agent.remoteControl ? "Remote control is disabled for this machine. An administrator can enable it on the Machines page."
+    : !agent.remoteControl ? "Remote control is disabled for this machine. Enable it from the ⋯ menu on the machine's row in the Dashboard."
     : !agent.agentAllows ? "This machine's agent was installed without remote control permission."
     : agent.desktop ? "Waiting for the desktop stream…"
     : "Screen session hasn't been started. Use Take control to view and control the desktop.";
@@ -291,9 +294,18 @@ function RemoteSession() {
           {controllable && (
             <form className="rs-panel rs-transfer" onSubmit={handleTransfer}>
               <h2>File transfer</h2>
-              <input ref={fileInput} type="file" onChange={event => setFile(event.target.files?.[0] ?? null)} disabled={progress !== null} />
-              <label htmlFor="rs-path">Destination</label>
-              <input id="rs-path" value={path} onChange={event => setPath(event.target.value)} disabled={progress !== null} />
+              <div className="rs-field">
+                <span className="rs-label">File</span>
+                <div className="rs-file">
+                  <input id="rs-file" ref={fileInput} type="file" className="rs-file-input" onChange={event => setFile(event.target.files?.[0] ?? null)} disabled={progress !== null} />
+                  <label htmlFor="rs-file" className="rs-file-button">Choose file</label>
+                  <span className="rs-file-name" title={file?.name}>{file ? `${file.name} · ${formatSize(file.size)}` : "No file selected"}</span>
+                </div>
+              </div>
+              <div className="rs-field">
+                <label htmlFor="rs-path" className="rs-label">Destination folder</label>
+                <input id="rs-path" className="rs-path" value={path} onChange={event => setPath(event.target.value)} disabled={progress !== null} spellCheck={false} />
+              </div>
               {progress !== null && <progress max={100} value={progress} />}
               {transferError && <p className="rs-error" role="alert">{transferError}</p>}
               <button type="submit" disabled={progress !== null}><Upload size={14} /> Send file</button>

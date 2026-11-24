@@ -63,21 +63,33 @@ public class MachineService {
     
     @Transactional
     public MachineDto create(CreateMachineRequestDto dto) {
+        Machine machine = new Machine();
+        apply(machine, dto);
+        machine.setStatus("offline");
+        Machine saved = machineRepository.save(machine);
+        return convertToDto(saved);
+    }
+
+    @Transactional
+    public MachineDto update(long machineId, CreateMachineRequestDto dto) {
+        Machine machine = machineRepository.findById(machineId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Machine not found"));
+        apply(machine, dto);
+        return convertToDto(machine);
+    }
+
+    private void apply(Machine machine, CreateMachineRequestDto dto) {
         if (dto == null || !TYPES.contains(dto.type()) || !DEPARTMENTS.contains(dto.department())
                 || dto.hostname() == null || !dto.hostname().matches(HOSTNAME_PATTERN)
                 || dto.ipAddress() == null || !dto.ipAddress().matches(IPV4_PATTERN)
                 || dto.ownerId() == null)
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid machine data");
-        Machine machine = new Machine();
         machine.setOwner(userRepository.findById(dto.ownerId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Owner not found")));
         machine.setType(dto.type());
         machine.setDepartment(dto.department());
         machine.setHostname(dto.hostname());
         machine.setIpAddress(dto.ipAddress());
-        machine.setStatus("offline");
-        Machine saved = machineRepository.save(machine);
-        return convertToDto(saved);
     }
 
     // Enabling needs the hostname typed back so it can't happen by a stray click; disabling is always one step

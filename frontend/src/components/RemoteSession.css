@@ -225,15 +225,21 @@
 }
 
 .rs-transfer {
-  gap: 8px;
-  padding-bottom: 12px;
+  gap: 12px;
+  padding-bottom: 14px;
 }
 
 .rs-transfer > :not(h2) {
   margin: 0 14px;
 }
 
-.rs-transfer label {
+.rs-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.rs-label {
   color: var(--text-3);
   font-size: 10px;
   font-weight: 600;
@@ -241,18 +247,86 @@
   text-transform: uppercase;
 }
 
-.rs-transfer input[type="file"] {
-  margin-top: 4px;
-  font: 400 12px var(--sans);
+.rs-file {
+  display: flex;
+  align-items: center;
+  height: 32px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--subtle);
 }
 
-.rs-transfer input:not([type="file"]) {
+.rs-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.rs-file-button {
+  display: flex;
   flex: none;
-  font-family: Consolas, monospace;
+  align-items: center;
+  height: 100%;
+  padding: 0 12px;
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--navy);
+  font: 600 12px var(--sans);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+
+.rs-file-button:hover {
+  background: var(--navy);
+  color: #fff;
+}
+
+.rs-file-input:focus-visible + .rs-file-button {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.rs-file-input:disabled + .rs-file-button {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.rs-file-name {
+  min-width: 0;
+  padding: 0 10px;
+  overflow: hidden;
+  color: var(--text-2);
   font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rs-path {
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--subtle);
+  color: var(--text);
+  font: 400 12px Consolas, "Cascadia Mono", monospace;
+  transition: border-color 0.12s, background-color 0.12s;
+}
+
+.rs-path:focus {
+  border-color: var(--navy);
+  background: var(--surface);
+  outline: none;
+}
+
+.rs-path:disabled {
+  opacity: 0.6;
 }
 
 .rs-transfer progress {
+  width: auto;
   height: 4px;
   accent-color: var(--navy);
 }

@@ -38,6 +38,12 @@ public class MachineController {
     }
 
     @PreAuthorize("hasRole('ADMIN')")
+    @PutMapping("/{id}")
+    public MachineDto update(@PathVariable long id, @RequestBody CreateMachineRequestDto body) {
+        return machineService.update(id, body);
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
     @PatchMapping("/{id}/remote-control")
     public MachineDto setRemoteControl(@PathVariable long id, @RequestBody RemoteControlRequestDto body, Authentication auth) {
         return machineService.setRemoteControl(id, body, SecurityUtils.getUserId(auth));

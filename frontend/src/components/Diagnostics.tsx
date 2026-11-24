@@ -304,7 +304,7 @@ function SubnetScanner({ machines }: { machines: Machine[] }) {
       });
       setFound(hosts);
       const where = subnet ? `${subnet[1]}.0/24 via ${subnet[2]}` : "";
-      const stale = subnet && !source.ipAddress.startsWith(subnet[1] + ".") ? ` Registered IP ${source.ipAddress} is not on this subnet; update it on the Machines page.` : "";
+      const stale = subnet && !source.ipAddress.startsWith(subnet[1] + ".") ? ` Registered IP ${source.ipAddress} is not on this subnet.` : "";
       setNote(failure ? failure[1]
         : hosts.length ? `${hosts.length} hosts found on ${where} from ${source.hostname}.${stale}`
         : subnet ? `No hosts responded on ${where}.` : output.trim() || "No hosts responded.");
