@@ -5,8 +5,7 @@ import { DEPARTMENTS, MACHINE_TYPES } from "../types/Machine";
 import "./Tickets.css";
 
 const API_BASE = API_URL || window.location.origin;
-const DEFENDER_COMMAND = `Add-MpPreference -ExclusionPath "C:\\Program Files\\SDOC Agent", "$env:TEMP\\sdoc-agent-install"`;
-const SMART_APP_CONTROL_COMMAND = `Set-ItemProperty -Path "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\CI\\Policy" -Name VerifiedAndReputablePolicyState -Value 0 -Type DWord; CiTool.exe -r`;
+const DEFENDER_COMMAND = `Set-ItemProperty -Path "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\CI\\Policy" -Name VerifiedAndReputablePolicyState -Value 0 -Type DWord; CiTool.exe -r`;
 const INSTALL_COMMAND = `powershell -NoProfile -ExecutionPolicy Bypass -Command "irm ${API_BASE}/api/v1/agent/install.ps1 | iex"`;
 
 const EMPTY = { hostname: "", ipAddress: "", type: MACHINE_TYPES[0], department: DEPARTMENTS[0], ownerId: "" };
@@ -185,14 +184,6 @@ function Machines() {
             so first allow the workers's folders. With Microsoft Defender run:
             <CopyCommand command={DEFENDER_COMMAND} />
             With other antivirus software, add the same two folders as exclusions in its settings.
-          </li>
-          <li>
-            On Windows 11, <strong>Smart App Control</strong> blocks the agent because it is not digitally signed. Check it in
-            Windows Security → App &amp; browser control → Smart App Control. If it is <strong>On</strong>, turn it off with:
-            <CopyCommand command={SMART_APP_CONTROL_COMMAND} />
-            <span className="install-warning">
-              Windows can't turn Smart App Control back on without a reset or reinstall. Skip this step if it is already Off.
-            </span>
           </li>
           <li>
             In the same PowerShell window run:
