@@ -49,8 +49,9 @@ function HostSelect({ machines, value, onChange, disabled = false }: HostSelectP
   );
 }
 
-function PortChecker({ machines }: { machines: Machine[] }) {
-  const [host, setHost] = useState("");
+type ToolProps = { machines: Machine[]; host: string };
+
+function PortChecker({ machines, host }: ToolProps) {
   const [results, setResults] = useState<PortResult[]>([]);
   const [error, setError] = useState<string | null>(null);
   const timers = useRef<number[]>([]);
@@ -77,7 +78,6 @@ function PortChecker({ machines }: { machines: Machine[] }) {
     <section className="rs-panel">
       <h2>Port status</h2>
       <form className="dg-form" onSubmit={check}>
-        <HostSelect machines={machines} value={host} onChange={setHost} />
         <button type="submit" disabled={!host}>Check ports</button>
       </form>
       {error && <p className="rs-error dg-pad" role="alert">{error}</p>}
@@ -98,8 +98,7 @@ function PortChecker({ machines }: { machines: Machine[] }) {
   );
 }
 
-function NetConsole({ machines }: { machines: Machine[] }) {
-  const [host, setHost] = useState("");
+function NetConsole({ machines, host }: ToolProps) {
   const [lines, setLines] = useState<string[]>([]);
   const [running, setRunning] = useState(false);
   const timer = useRef<number | undefined>(undefined);
@@ -182,7 +181,6 @@ function NetConsole({ machines }: { machines: Machine[] }) {
     <section className="rs-panel">
       <h2>Ping &amp; traceroute</h2>
       <form className="dg-form" onSubmit={event => { event.preventDefault(); start("ping"); }}>
-        <HostSelect machines={machines} value={host} onChange={setHost} disabled={running} />
         {running ? (
           <button type="button" className="dg-stop" onClick={handleStop}>Stop</button>
         ) : (
@@ -194,7 +192,7 @@ function NetConsole({ machines }: { machines: Machine[] }) {
         <button type="button" className="dg-ghost" onClick={() => setLines([])} disabled={running}>Clear</button>
       </form>
       <div className="rs-terminal dg-terminal">
-        {lines.length === 0 && <pre className="in">Enter a target and start a test.</pre>}
+        {lines.length === 0 && <pre className="in">Choose a host at the top, then start a test.</pre>}
         {lines.map((line, index) => <pre key={index}>{line || " "}</pre>)}
         <div ref={end} />
       </div>
@@ -262,13 +260,12 @@ function simulatedHosts(prefix: string, machines: Machine[]): Found[] {
   return [...hosts.entries()].sort(([a], [b]) => a - b).map(([, host]) => host);
 }
 
-function SubnetScanner({ machines }: { machines: Machine[] }) {
-  const [machineId, setMachineId] = useState("");
+function SubnetScanner({ machines, host }: ToolProps) {
   const [found, setFound] = useState<Found[]>([]);
   const [scanning, setScanning] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
 
-  const source = machines.find(m => String(m.id) === machineId);
+  const source = machines.find(m => String(m.id) === host);
   const prefix = source?.ipAddress.split(".").slice(0, 3).join(".");
 
   async function scan(event: FormEvent<HTMLFormElement>) {
@@ -314,7 +311,6 @@ function SubnetScanner({ machines }: { machines: Machine[] }) {
     <section className="rs-panel dg-wide">
       <h2>Subnet discovery (ARP / broadcast)</h2>
       <form className="dg-form" onSubmit={scan}>
-        <HostSelect machines={machines} value={machineId} onChange={setMachineId} disabled={scanning !== null} />
         <button type="submit" disabled={scanning !== null || !source}>{scanning !== null ? "Scanning…" : "Scan subnet"}</button>
       </form>
       {scanning && <p className="rs-note">{scanning}</p>}
@@ -326,13 +322,14 @@ function SubnetScanner({ machines }: { machines: Machine[] }) {
           ))}
         </tbody>
       </table>
-      {!scanning && <p className="rs-note">{note ?? "Pick a host; its agent sweeps the /24 subnet it is connected to. Needs remote control enabled for that machine."}</p>}
+      {!scanning && <p className="rs-note">{note ?? "The selected host's agent sweeps the /24 subnet it is connected to. Needs remote control enabled for that machine."}</p>}
     </section>
   );
 }
 
 function Diagnostics() {
   const [machines, setMachines] = useState<Machine[]>([]);
+  const [host, setHost] = useState("");
 
   useEffect(() => {
     apiFetch("/api/v1/machines")
@@ -343,11 +340,17 @@ function Diagnostics() {
 
   return (
     <div className="rs-page">
-      <header className="rs-head"><h1>Network diagnostics</h1></header>
+      <header className="rs-head">
+        <h1>Network diagnostics</h1>
+        <label className="dg-host">
+          <span>Host</span>
+          <HostSelect machines={machines} value={host} onChange={setHost} />
+        </label>
+      </header>
       <div className="dg-grid">
-        <PortChecker machines={machines} />
-        <NetConsole machines={machines} />
-        <SubnetScanner machines={machines} />
+        <PortChecker machines={machines} host={host} />
+        <NetConsole machines={machines} host={host} />
+        <SubnetScanner machines={machines} host={host} />
       </div>
     </div>
   );

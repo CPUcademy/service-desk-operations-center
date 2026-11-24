@@ -31,6 +31,7 @@ if ((Resolve-Path $PSScriptRoot).Path -ne $InstallDir) {
     New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
     Copy-Item -Path (Join-Path $PSScriptRoot "*") -Destination $InstallDir -Recurse -Force
 }
+Get-ChildItem -Path $InstallDir -Recurse -File | Unblock-File
 
 $settingsPath = Join-Path $InstallDir "appsettings.json"
 $settings = Get-Content $settingsPath -Raw | ConvertFrom-Json

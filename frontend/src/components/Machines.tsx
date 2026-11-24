@@ -15,6 +15,34 @@ interface Owner {
   email: string;
 }
 
+function WorkerKey() {
+  const [key, setKey] = useState<string | null>(null);
+  const [shown, setShown] = useState(false);
+
+  function reveal() {
+    setShown(true);
+    if (key !== null) return;
+    apiFetch("/api/v1/agent/key")
+      .then(response => (response.ok ? response.json() : { key: "unavailable" }))
+      .then(body => setKey(body.key))
+      .catch(() => setKey("unavailable"));
+  }
+
+  return (
+    <code
+      className="worker-key"
+      tabIndex={0}
+      title="Hover to reveal"
+      onMouseEnter={reveal}
+      onMouseLeave={() => setShown(false)}
+      onFocus={reveal}
+      onBlur={() => setShown(false)}
+    >
+      {shown ? key ?? "loading…" : "•••••••••••• hover to reveal"}
+    </code>
+  );
+}
+
 function Machines() {
   const [form, setForm] = useState(EMPTY);
   const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
@@ -73,27 +101,25 @@ function Machines() {
         <h2>Add machine</h2>
         <div className="ticket-form-row">
           <div className="ticket-field">
-            <label htmlFor="hostname">HOSTNAME</label>
+            <label htmlFor="hostname">HOSTNAME (CAN BE EMPTY)</label>
             <input
               id="hostname"
               value={form.hostname}
               onChange={event => update("hostname", event.target.value)}
-              placeholder="DESKTOP-FIN01"
+              placeholder="Default: MACHINE-<id>"
               maxLength={253}
-              required
             />
           </div>
           <div className="ticket-field">
-            <label htmlFor="ipAddress">IP ADDRESS</label>
+            <label htmlFor="ipAddress">IP ADDRESS (CAN BE EMPTY)</label>
             <input
               id="ipAddress"
               value={form.ipAddress}
               onChange={event => update("ipAddress", event.target.value)}
-              placeholder="192.168.1.20"
+              placeholder="Default: 0.0.0.0"
               inputMode="decimal"
               pattern="(\d{1,3}\.){3}\d{1,3}"
               title="IPv4 address, e.g. 192.168.1.20"
-              required
             />
           </div>
         </div>
@@ -138,20 +164,16 @@ function Machines() {
       <section className="ticket-form install-guide" aria-labelledby="install-title">
         <h2 id="install-title">Install the agent on a computer</h2>
         <ol>
-          <li>Add the computer above and note its machine ID (the #number, also shown on the Dashboard).</li>
+          <li>Add the machine in the form above and note its ID (the #number, also shown on the Dashboard).</li>
           <li>
-            On that computer, open PowerShell as Administrator (Start → type <strong>PowerShell</strong> → Run as administrator) and run:
+            On that machine, open PowerShell as Administrator and run:
             <div className="install-command">
               <code>{INSTALL_COMMAND}</code>
               <button type="button" onClick={copyCommand}>{copied ? "Copied" : "Copy"}</button>
             </div>
           </li>
           <li>
-            Answer the three prompts: the machine ID, the worker API key (<code>WORKER_API_KEY</code> from the server settings), and whether to allow remote control on that computer.
-          </li>
-          <li>
-            The computer shows as Online on the Dashboard within a few seconds. To control it remotely, answer <strong>y</strong> to the last prompt
-            and enable remote control from the ⋯ menu on its Dashboard row.
+            Answer the three prompts: the machine ID, the worker API key (<WorkerKey />), and whether to allow remote control on that computer.
           </li>
         </ol>
         <p className="install-note">

@@ -32,6 +32,7 @@ public class MachineService {
     private static final List<String> DEPARTMENTS = List.of("Finance", "Sales", "IT", "HR", "Management");
     private static final String HOSTNAME_PATTERN = "^[A-Za-z0-9](?:[A-Za-z0-9.-]{0,251}[A-Za-z0-9])?$";
     private static final String IPV4_PATTERN = "^((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)\\.){3}(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)$";
+    private static final String DEFAULT_IP = "0.0.0.0";
     private static final Duration METRICS_TTL = Duration.ofSeconds(10);
     private final MachineRepository machineRepository;
     private final UserRepository userRepository;
@@ -63,10 +64,15 @@ public class MachineService {
     
     @Transactional
     public MachineDto create(CreateMachineRequestDto dto) {
+        if (dto == null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid machine data");
+        boolean autoHostname = dto.hostname() == null || dto.hostname().isBlank();
+        boolean autoIp = dto.ipAddress() == null || dto.ipAddress().isBlank();
         Machine machine = new Machine();
-        apply(machine, dto);
+        apply(machine, new CreateMachineRequestDto(dto.type(), dto.department(),
+                autoHostname ? "MACHINE" : dto.hostname().trim(), autoIp ? DEFAULT_IP : dto.ipAddress().trim(), dto.ownerId()));
         machine.setStatus("offline");
         Machine saved = machineRepository.save(machine);
+        if (autoHostname) saved.setHostname("MACHINE-" + saved.getId());
         return convertToDto(saved);
     }
 

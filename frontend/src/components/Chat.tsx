@@ -123,6 +123,12 @@ function Chat() {
           <input
             value={text}
             onChange={event => setText(event.target.value)}
+            onKeyDown={event => {
+              if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
+                event.preventDefault();
+                event.currentTarget.form?.requestSubmit();
+              }
+            }}
             placeholder={peer ? `Message ${peer.fullName}…` : "Choose someone first"}
             maxLength={2000}
             disabled={!peer || !ready}

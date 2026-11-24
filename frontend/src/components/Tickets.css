@@ -532,3 +532,13 @@
   color: var(--navy);
   font-weight: 600;
 }
+
+.worker-key {
+  cursor: help;
+  user-select: all;
+}
+
+.worker-key:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
