@@ -377,3 +377,55 @@
   color: #ff9b9b;
 }
 
+
+.rs-screen.is-live:fullscreen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: none;
+  padding: 0;
+  border-radius: 0;
+}
+
+.rs-screen.is-live:fullscreen img {
+  width: auto;
+  max-width: 100%;
+  max-height: 100vh;
+}
+
+.rs-focus-bar {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 6px 6px 14px;
+  border-radius: 0 0 6px 6px;
+  background: #031632f2;
+  box-shadow: 0 4px 16px #0006;
+  color: #fff;
+  font: 500 13px var(--sans);
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+.rs-focus-bar kbd {
+  padding: 1px 6px;
+  border: 1px solid #ffffff66;
+  border-radius: 3px;
+  background: #ffffff1a;
+  font: 700 12px var(--sans);
+}
+
+.rs-focus-bar button {
+  height: 28px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 4px;
+  background: var(--bad);
+  color: #fff;
+  font: 700 12px var(--sans);
+  cursor: pointer;
+}

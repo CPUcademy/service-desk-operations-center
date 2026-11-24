@@ -23,7 +23,7 @@ namespace sdoc
 
             using var ws = new ClientWebSocket();
             using var stop = new CancellationTokenSource();
-            await ws.ConnectAsync(AgentClient.WsUri(server, $"/api/v1/internal/agent/{machineId}?token={token}"), CancellationToken.None);
+            await ws.ConnectAsync(AgentClient.WsUri(server, $"/api/v1/internal/worker/{machineId}?token={token}"), CancellationToken.None);
 
             var hello = new JsonObject { ["type"] = "desktop", ["width"] = bounds.Width, ["height"] = bounds.Height };
             await ws.SendAsync(Encoding.UTF8.GetBytes(hello.ToJsonString()), WebSocketMessageType.Text, true, CancellationToken.None);

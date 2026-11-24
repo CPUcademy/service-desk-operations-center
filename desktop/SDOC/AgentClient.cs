@@ -5,13 +5,16 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.Hosting.WindowsServices;
+#if WINDOWS
 using Microsoft.Win32;
+#endif
 
 namespace sdoc
 {
     public class AgentClient(ILogger<AgentClient> logger, IConfiguration configuration) : BackgroundService
     {
-        public const string ServiceName = "SDOCAgent";
+        public const string ServiceName = "SDOCWorker";
+        private const string LinuxService = "sdoc-worker";
         private const int MaxOutput = 32 * 1024;
         private const long MaxUpload = 500L * 1024 * 1024;
         private static readonly TimeSpan CommandTimeout = TimeSpan.FromSeconds(60);
@@ -29,13 +32,13 @@ namespace sdoc
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             string? apiKey = Environment.GetEnvironmentVariable("WORKER_API_KEY");
-            int machineId = configuration.GetValue<int>("Agent:MachineId");
-            if (string.IsNullOrEmpty(apiKey) || machineId <= 0 || !Uri.TryCreate(configuration["Agent:ServerUrl"], UriKind.Absolute, out Uri? server))
+            int machineId = configuration.GetValue<int>("Worker:MachineId");
+            if (string.IsNullOrEmpty(apiKey) || machineId <= 0 || !Uri.TryCreate(configuration["Worker:ServerUrl"], UriKind.Absolute, out Uri? server))
                 return;
 
-            Uri endpoint = WsUri(server, $"/api/v1/internal/agent/{machineId}");
+            Uri endpoint = WsUri(server, $"/api/v1/internal/worker/{machineId}");
             // Local opt-in; the server can't override it
-            localAllows = configuration.GetValue<bool>("Agent:AllowRemoteControl");
+            localAllows = configuration.GetValue<bool>("Worker:AllowRemoteControl");
             logger.LogInformation("Remote control allowed locally: {allowed}", localAllows);
             while (!stoppingToken.IsCancellationRequested)
             {
@@ -47,13 +50,13 @@ namespace sdoc
                     await ws.ConnectAsync(endpoint, stoppingToken);
                     socket = ws;
                     serverAllows = false;
-                    logger.LogInformation("Agent channel connected");
-                    await Send(new JsonObject { ["type"] = "hello", ["remoteControl"] = localAllows }, stoppingToken);
+                    logger.LogInformation("Worker channel connected");
+                    await Send(new JsonObject { ["type"] = "hello", ["remoteControl"] = localAllows, ["os"] = OperatingSystem.IsWindows() ? "windows" : "linux", ["screen"] = OperatingSystem.IsWindows() }, stoppingToken);
                     await ReceiveLoop(ws, server, machineId, stoppingToken);
                 }
                 catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
                 {
-                    logger.LogWarning("Agent channel down: {message}", ex.Message);
+                    logger.LogWarning("Worker channel down: {message}", ex.Message);
                 }
                 socket = null;
                 await Task.Delay(5000, stoppingToken);
@@ -86,7 +89,7 @@ namespace sdoc
                 string? type = (string?)msg?["type"];
                 if (type is "exec" or "cad" or "desktop-start" or "file-start" && !RemoteAllowed)
                 {
-                    string reason = localAllows ? "Remote control is disabled for this machine." : "Remote control is not allowed on this machine (local agent setting).";
+                    string reason = localAllows ? "Remote control is disabled for this machine." : "Remote control is not allowed on this machine (local worker setting).";
                     logger.LogWarning("Refused remote {type}: remote control not allowed", type);
                     JsonObject reply = type switch
                     {
@@ -108,7 +111,8 @@ namespace sdoc
                     case "exec":
                         JsonNode? id = msg!["id"]?.DeepClone();
                         string command = (string?)msg["command"] ?? "";
-                        _ = Task.Run(() => Exec(id, command, token), token);
+                        string cwd = (string?)msg["cwd"] ?? "";
+                        _ = Task.Run(() => Exec(id, command, cwd, token), token);
                         break;
                     case "restart-agent":
                         await Notice(RestartSelf(), token);
@@ -196,22 +200,31 @@ namespace sdoc
             public long Received { get; set; }
         }
 
-        private async Task Exec(JsonNode? id, string command, CancellationToken token)
+        private const string CwdMarker = "__SDOC_CWD__";
+
+        private async Task Exec(JsonNode? id, string command, string cwd, CancellationToken token)
         {
-            logger.LogInformation("Remote command: {command}", command);
+            if (command.Length > 0) logger.LogInformation("Remote command in {cwd}: {command}", cwd, command);
             string output;
             int exitCode;
+            string? newCwd = null;
             try
             {
-                string script = "$ProgressPreference = 'SilentlyContinue'\n& {\n" + command + "\n} 2>&1 | Out-String -Width 160";
-                var psi = new ProcessStartInfo("powershell.exe",
-                    ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-EncodedCommand", Convert.ToBase64String(Encoding.Unicode.GetBytes(script))])
-                {
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                };
+                string script = "$ProgressPreference = 'SilentlyContinue'\n"
+                    + (cwd.Length > 0 ? $"try {{ Set-Location -LiteralPath '{cwd.Replace("'", "''")}' -ErrorAction Stop }} catch {{ Set-Location \"$env:SystemDrive\\\" }}\n" : "Set-Location \"$env:SystemDrive\\\"\n")
+                    + "& {\n" + command + "\n} 2>&1 | Out-String -Width 160\n"
+                    + $"\"`n{CwdMarker}\" + (Get-Location).ProviderPath";
+                string shell = (cwd.Length > 0 ? $"cd -- '{cwd.Replace("'", "'\\''")}' 2>/dev/null || cd ~\n" : "cd ~\n")
+                    + command + "\nrc=$?\n"
+                    + $"printf '\\n{CwdMarker}%s' \"$(pwd)\"\nexit $rc";
+                var psi = OperatingSystem.IsWindows()
+                    ? new ProcessStartInfo("powershell.exe",
+                        ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-EncodedCommand", Convert.ToBase64String(Encoding.Unicode.GetBytes(script))])
+                    : new ProcessStartInfo("/bin/sh", ["-c", shell]);
+                psi.RedirectStandardOutput = true;
+                psi.RedirectStandardError = true;
+                psi.UseShellExecute = false;
+                psi.CreateNoWindow = true;
                 using Process process = Process.Start(psi)!;
                 Task<string> stdout = process.StandardOutput.ReadToEndAsync(token);
                 Task<string> stderr = process.StandardError.ReadToEndAsync(token);
@@ -220,8 +233,15 @@ namespace sdoc
                 try
                 {
                     await process.WaitForExitAsync(timeout.Token);
-                    output = (await stdout + CleanStderr(await stderr)).TrimEnd();
+                    output = await stdout + CleanStderr(await stderr);
                     exitCode = process.ExitCode;
+                    int marker = output.LastIndexOf(CwdMarker, StringComparison.Ordinal);
+                    if (marker >= 0)
+                    {
+                        newCwd = output[(marker + CwdMarker.Length)..].Split('\n')[0].Trim();
+                        output = output.Remove(marker, CwdMarker.Length + newCwd.Length);
+                    }
+                    output = output.Trim('\r', '\n');
                 }
                 catch (OperationCanceledException) when (!token.IsCancellationRequested)
                 {
@@ -237,7 +257,7 @@ namespace sdoc
             }
 
             if (output.Length > MaxOutput) output = output[..MaxOutput] + "\n… output truncated";
-            await Send(new JsonObject { ["type"] = "exec-result", ["id"] = id, ["output"] = output, ["exitCode"] = exitCode }, token);
+            await Send(new JsonObject { ["type"] = "exec-result", ["id"] = id, ["output"] = output, ["exitCode"] = exitCode, ["cwd"] = newCwd ?? cwd }, token);
         }
 
         private static string CleanStderr(string stderr)
@@ -249,18 +269,27 @@ namespace sdoc
 
         private string RestartSelf()
         {
+            if (!OperatingSystem.IsWindows())
+            {
+                if (Environment.GetEnvironmentVariable("INVOCATION_ID") == null)
+                    return "Worker is not running as a systemd service. Restart it manually.";
+                Process.Start(new ProcessStartInfo("systemctl", ["--no-block", "restart", LinuxService]) { UseShellExecute = false });
+                logger.LogWarning("Worker restart requested remotely");
+                return "Worker restarting…";
+            }
             if (!WindowsServiceHelpers.IsWindowsService())
-                return "Agent is not running as a Windows service. Restart it manually.";
+                return "Worker is not running as a Windows service. Restart it manually.";
             // The child outlives the service stop
             Process.Start(new ProcessStartInfo("cmd.exe", $"/c net stop {ServiceName} & net start {ServiceName}") { CreateNoWindow = true, UseShellExecute = false });
-            logger.LogWarning("Agent restart requested remotely");
-            return "Agent restarting…";
+            logger.LogWarning("Worker restart requested remotely");
+            return "Worker restarting…";
         }
 
         private string SendCtrlAltDel()
         {
+#if WINDOWS
             if (!WindowsServiceHelpers.IsWindowsService())
-                return "Ctrl+Alt+Del needs the agent running as a Windows service.";
+                return "Ctrl+Alt+Del needs the worker running as a Windows service.";
             using (RegistryKey key = Registry.LocalMachine.CreateSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System"))
             {
                 // 1 = services may send SAS
@@ -269,10 +298,17 @@ namespace sdoc
             }
             Native.SendSAS(false);
             return "Ctrl+Alt+Del sent.";
+#else
+            return "Ctrl+Alt+Del is not available on this machine.";
+#endif
         }
 
         private async Task<string> StartDesktop(Uri server, int machineId, CancellationToken token)
         {
+#if !WINDOWS
+            await Task.CompletedTask;
+            return "Screen control is not available on this machine (no desktop).";
+#else
             string desktopToken = Convert.ToHexString(RandomNumberGenerator.GetBytes(24));
             await Send(new JsonObject { ["type"] = "desktop-token", ["token"] = desktopToken }, token);
 
@@ -289,6 +325,7 @@ namespace sdoc
                 logger.LogWarning("Desktop helper failed to start: {message}", ex.Message);
                 return $"Desktop unavailable: {ex.Message}";
             }
+#endif
         }
 
         private Task Notice(string text, CancellationToken token) =>

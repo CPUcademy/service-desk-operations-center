@@ -8,13 +8,13 @@ if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administra
 }
 
 $server = '__SERVER__'
-$work = Join-Path $env:TEMP 'sdoc-agent-install'
+$work = Join-Path $env:TEMP 'sdoc-worker-install'
 if (Test-Path $work) { Remove-Item $work -Recurse -Force }
 New-Item -ItemType Directory -Path $work | Out-Null
 
-Write-Host "Downloading SDOC Agent from $server (about 50 MB, the first download after a server update can take a minute) ..."
-Invoke-WebRequest -Uri "$server/api/v1/agent/download" -OutFile (Join-Path $work 'agent.zip') -UseBasicParsing
-Expand-Archive -Path (Join-Path $work 'agent.zip') -DestinationPath (Join-Path $work 'agent')
+Write-Host "Downloading SDOC Worker from $server (about 50 MB, the first download after a server update can take a minute) ..."
+Invoke-WebRequest -Uri "$server/api/v1/worker/download" -OutFile (Join-Path $work 'worker.zip') -UseBasicParsing
+Expand-Archive -Path (Join-Path $work 'worker.zip') -DestinationPath (Join-Path $work 'worker')
 
-& (Join-Path $work 'agent\install-service.ps1') -ServerUrl $server
+& (Join-Path $work 'worker\install-service.ps1') -ServerUrl $server
 Remove-Item $work -Recurse -Force -ErrorAction SilentlyContinue

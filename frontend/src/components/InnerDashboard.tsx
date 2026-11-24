@@ -200,12 +200,12 @@ function RowMenu({ machine, onChange }: { machine: Machine; onChange: (machine: 
                     ) : (
                         <span className="row-menu-note">
                             {machine.agentRemoteControl === false
-                                ? "Remote control is blocked on this computer by its agent settings"
+                                ? "Remote control is blocked on this machine by its worker settings"
                                 : machine.agentRemoteControl === undefined
                                     ? "Remote control status unknown. Deploy the latest backend."
                                     : getMachineState(machine) === "offline"
-                                        ? "The agent is offline"
-                                        : "This agent doesn't support remote control. Reinstall it with the latest version."}
+                                        ? "The worker is offline"
+                                        : "This worker doesn't support remote control. Reinstall it with the latest version."}
                         </span>
                     )}
                 </div>

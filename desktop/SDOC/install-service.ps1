@@ -2,8 +2,8 @@
 
 param(
     [string]$ServerUrl,
-    [string]$InstallDir = "C:\Program Files\SDOC Agent",
-    [string]$ServiceName = "SDOCAgent"
+    [string]$InstallDir = "C:\Program Files\SDOC Worker",
+    [string]$ServiceName = "SDOCWorker"
 )
 
 $ErrorActionPreference = "Stop"
@@ -16,18 +16,17 @@ do {
     $secureKey = Read-Host "Worker API key" -AsSecureString
 } until ($secureKey.Length -gt 0)
 
-$allow = Read-Host "Allow remote control (commands, files, screen) on this computer? [y/N]"
+$allow = Read-Host "Allow remote control (commands, files, screen) on this machine? [y/N]"
 
-$existing = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
-if ($existing) {
-    Write-Host "Removing the existing $ServiceName service..."
-    if ($existing.Status -ne "Stopped") { Stop-Service -Name $ServiceName -Force -NoWait -ErrorAction SilentlyContinue }
+$existing = @(Get-Service -Name $ServiceName, "SDOCAgent" -ErrorAction SilentlyContinue)
+foreach ($service in $existing) {
+    Write-Host "Removing the existing $($service.Name) service..."
+    if ($service.Status -ne "Stopped") { Stop-Service -Name $service.Name -Force -NoWait -ErrorAction SilentlyContinue }
 }
 Get-Process -Name SDOC -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
-if ($existing) {
-    sc.exe delete $ServiceName | Out-Null
-    Start-Sleep -Seconds 2
-}
+foreach ($service in $existing) { sc.exe delete $service.Name | Out-Null }
+if ($existing) { Start-Sleep -Seconds 2 }
+Remove-Item "C:\Program Files\SDOC Agent" -Recurse -Force -ErrorAction SilentlyContinue
 
 if ((Resolve-Path $PSScriptRoot).Path -ne $InstallDir) {
     Write-Host "Copying files to $InstallDir (antivirus scanning can make this take a minute) ..."
@@ -40,13 +39,13 @@ Write-Host "Configuring the service..."
 
 $settingsPath = Join-Path $InstallDir "appsettings.json"
 $settings = Get-Content $settingsPath -Raw | ConvertFrom-Json
-$settings.Agent.MachineId = [int]$machineId
-if ($ServerUrl) { $settings.Agent.ServerUrl = $ServerUrl }
-$settings.Agent | Add-Member -Force -NotePropertyName AllowRemoteControl -NotePropertyValue ($allow -match '^(y|yes)$')
+$settings.Worker.MachineId = [int]$machineId
+if ($ServerUrl) { $settings.Worker.ServerUrl = $ServerUrl }
+$settings.Worker | Add-Member -Force -NotePropertyName AllowRemoteControl -NotePropertyValue ($allow -match '^(y|yes)$')
 $settings | ConvertTo-Json -Depth 10 | Set-Content $settingsPath -Encoding UTF8
 
 New-Service -Name $ServiceName `
-            -DisplayName "SDOC Agent" `
+            -DisplayName "SDOC Worker" `
             -Description "Service Desk Operations Center - sends CPU/RAM/latency of this computer to the server." `
             -BinaryPathName "`"$InstallDir\sdoc.exe`"" `
             -StartupType Automatic | Out-Null

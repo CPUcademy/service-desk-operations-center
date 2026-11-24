@@ -200,7 +200,7 @@ function NetConsole({ machines, host }: ToolProps) {
   );
 }
 
-function runOnAgent(machineId: number, command: string): Promise<string | null> {
+function runOnWorker(machineId: number, command: (os: string) => string): Promise<string | null> {
   return new Promise(resolve => {
     const socket = new WebSocket(`${WS_BASE}/api/v1/remote/${machineId}`);
     const id = Date.now();
@@ -213,14 +213,30 @@ function runOnAgent(machineId: number, command: string): Promise<string | null> 
       if (typeof event.data !== "string") return;
       const msg = JSON.parse(event.data);
       if (msg.type === "agent" && !msg.online) finish(null);
-      else if (msg.type === "agent" && !sent) {
+      else if (msg.type === "agent" && !sent && msg.os !== null) {
         sent = true;
-        socket.send(JSON.stringify({ type: "exec", id, command }));
+        socket.send(JSON.stringify({ type: "exec", id, command: command(msg.os ?? "windows") }));
       } else if (msg.type === "exec-result" && msg.id === id) finish(msg.output ?? "");
     };
     socket.onclose = () => resolve(null);
   });
 }
+
+const LINUX_SUBNET_SCRIPT = `
+IFACE=$(ip -4 route show default | awk '{print $5; exit}')
+[ -n "$IFACE" ] || { echo "ERROR|No active network interface with a default gateway."; exit 0; }
+SELF=$(ip -4 -o addr show dev "$IFACE" | awk '{split($4, a, "/"); print a[1]; exit}')
+PREFIX=\${SELF%.*}
+echo "SUBNET|$PREFIX|$IFACE"
+for i in $(seq 1 254); do ping -c 1 -W 1 "$PREFIX.$i" >/dev/null 2>&1 & done
+wait
+ip -4 neigh show dev "$IFACE" | awk -v p="$PREFIX." 'index($1, p) == 1 && $2 == "lladdr" {print $1, $3, $NF}' | while read -r IP MAC STATE; do
+  NAME=$(getent hosts "$IP" | awk '{print $2; exit}')
+  [ "$NAME" = "$IP" ] && NAME=""
+  echo "$IP|$MAC|$NAME|$STATE"
+done
+echo "$SELF|this machine|$(hostname)|Self"
+`;
 
 const SUBNET_SCRIPT = `
 $ProgressPreference = 'SilentlyContinue'
@@ -275,12 +291,12 @@ function SubnetScanner({ machines, host }: ToolProps) {
     setNote(null);
     setScanning(`Scanning ${source.hostname}…`);
 
-    const output = await runOnAgent(source.id, SUBNET_SCRIPT);
+    const output = await runOnWorker(source.id, os => (os === "linux" ? LINUX_SUBNET_SCRIPT : SUBNET_SCRIPT));
     if (output === null) {
       await new Promise(resolve => window.setTimeout(resolve, 1500));
       const hosts = simulatedHosts(prefix, machines);
       setFound(hosts);
-      setNote(`Agent on ${source.hostname} is offline · simulated result, ${hosts.length} hosts.`);
+      setNote(`Worker on ${source.hostname} is offline · simulated result, ${hosts.length} hosts.`);
     } else {
       const rows = output.split(/\r?\n/).map(line => line.trim().split("|"));
       const subnet = rows.find(parts => parts[0] === "SUBNET");
@@ -322,7 +338,7 @@ function SubnetScanner({ machines, host }: ToolProps) {
           ))}
         </tbody>
       </table>
-      {!scanning && <p className="rs-note">{note ?? "The selected host's agent sweeps the /24 subnet it is connected to. Needs remote control enabled for that machine."}</p>}
+      {!scanning && <p className="rs-note">{note ?? "The selected host's worker sweeps the /24 subnet it is connected to. Needs remote control enabled for that machine."}</p>}
     </section>
   );
 }

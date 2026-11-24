@@ -30,7 +30,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 @Component
 public class RemoteRelayHandler extends AbstractWebSocketHandler {
-    public static final String AGENT_PATH = "/api/v1/internal/agent/*";
+    public static final String[] AGENT_PATHS = {"/api/v1/internal/worker/*", "/api/v1/internal/agent/*"};
     public static final String VIEWER_PATH = "/api/v1/remote/*";
 
     private static final Set<String> SERVICE_TYPES = Set.of("exec", "restart-agent", "cad", "desktop-start", "file-start");
@@ -45,6 +45,8 @@ public class RemoteRelayHandler extends AbstractWebSocketHandler {
         volatile String desktopToken;
         volatile Boolean remoteControl;
         volatile boolean agentAllows;
+        volatile String os;
+        volatile boolean screen;
         final Set<WebSocketSession> viewers = ConcurrentHashMap.newKeySet();
     }
 
@@ -95,6 +97,8 @@ public class RemoteRelayHandler extends AbstractWebSocketHandler {
                 session.getAttributes().put(ROLE, "service");
                 closeQuietly(channel.service);
                 channel.agentAllows = false;
+                channel.os = null;
+                channel.screen = false;
                 channel.service = wrap(session, OverflowStrategy.TERMINATE);
                 send(channel.service, policyMessage(allowed(machineId, channel)));
             }
@@ -141,6 +145,8 @@ public class RemoteRelayHandler extends AbstractWebSocketHandler {
                 if (type.equals("desktop-token")) channel.desktopToken = allowed(machineId, channel) ? node.path("token").asString(null) : null;
                 else if (type.equals("hello")) {
                     channel.agentAllows = node.path("remoteControl").asBoolean(false);
+                    channel.os = node.path("os").asString("windows").equals("linux") ? "linux" : "windows";
+                    channel.screen = node.path("screen").asBoolean(true);
                     broadcastStatus(channel);
                 } else sendAll(channel.viewers, text);
             }
@@ -250,7 +256,8 @@ public class RemoteRelayHandler extends AbstractWebSocketHandler {
 
     private TextMessage statusMessage(Channel channel) {
         return new TextMessage("{\"type\":\"agent\",\"online\":" + (channel.service != null) + ",\"desktop\":" + (channel.desktop != null)
-                + ",\"remoteControl\":" + Boolean.TRUE.equals(channel.remoteControl) + ",\"agentAllows\":" + channel.agentAllows + "}");
+                + ",\"remoteControl\":" + Boolean.TRUE.equals(channel.remoteControl) + ",\"agentAllows\":" + channel.agentAllows
+                + ",\"os\":" + (channel.os == null ? "null" : "\"" + channel.os + "\"") + ",\"screen\":" + channel.screen + "}");
     }
 
     private void broadcastStatus(Channel channel) {

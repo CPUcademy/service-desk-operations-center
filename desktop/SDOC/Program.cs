@@ -1,10 +1,12 @@
 using sdoc;
 
+#if WINDOWS
 if (args.Length == 4 && args[0] == "--desktop")
 {
     await DesktopHelper.RunAsync(args);
     return;
 }
+#endif
 
 var builder = Host.CreateApplicationBuilder(args);
 builder.Services.AddWindowsService(options => options.ServiceName = AgentClient.ServiceName);

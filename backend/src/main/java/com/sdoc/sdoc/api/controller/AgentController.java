@@ -13,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
@@ -30,20 +31,23 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 
-// Public except /key: the package holds no secrets
+// Public except /key: the packages hold no secrets
 @RestController
 @RequestMapping(AgentController.PREFIX)
 public class AgentController {
-    public static final String PREFIX = "/api/v1/agent";
+    public static final String PREFIX = "/api/v1/worker";
 
-    private final Resource agentPackage;
+    private final Resource windowsPackage;
+    private final Resource linuxPackage;
     private final String workerKey;
     private final JsonMapper jsonMapper;
     private final Map<String, Path> stamped = new HashMap<>();
 
-    public AgentController(@Value("${agent.package:/app/agent/sdoc-agent.zip}") String packagePath, @Value("${worker.api-key}") String workerKey,
-                           JsonMapper jsonMapper) {
-        this.agentPackage = new FileSystemResource(packagePath);
+    public AgentController(@Value("${worker.package.windows:/app/worker/sdoc-worker.zip}") String windowsPath,
+                           @Value("${worker.package.linux:/app/worker/sdoc-worker-linux.tar.gz}") String linuxPath,
+                           @Value("${worker.api-key}") String workerKey, JsonMapper jsonMapper) {
+        this.windowsPackage = new FileSystemResource(windowsPath);
+        this.linuxPackage = new FileSystemResource(linuxPath);
         this.workerKey = workerKey;
         this.jsonMapper = jsonMapper;
     }
@@ -55,26 +59,29 @@ public class AgentController {
     }
 
     @GetMapping("/download")
-    public ResponseEntity<Resource> download() throws IOException {
-        if (!agentPackage.exists())
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Agent package is not available on this server");
+    public ResponseEntity<Resource> download(@RequestParam(defaultValue = "windows") String os) throws IOException {
+        boolean linux = os.equals("linux");
+        Resource source = linux ? linuxPackage : windowsPackage;
+        if (!source.exists())
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Worker package is not available on this server");
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment().filename("sdoc-agent.zip").build().toString())
-                .body(new FileSystemResource(stampedPackage(serverUrl())));
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
+                        .filename(linux ? "sdoc-worker-linux.tar.gz" : "sdoc-worker.zip").build().toString())
+                .body(linux ? linuxPackage : new FileSystemResource(stampedPackage(serverUrl())));
     }
 
     private synchronized Path stampedPackage(String server) throws IOException {
         Path cached = stamped.get(server);
         if (cached != null && Files.exists(cached)) return cached;
-        Path target = Files.createTempFile("sdoc-agent-", ".zip");
-        try (var in = new ZipInputStream(agentPackage.getInputStream()); var zip = new ZipOutputStream(Files.newOutputStream(target))) {
+        Path target = Files.createTempFile("sdoc-worker-", ".zip");
+        try (var in = new ZipInputStream(windowsPackage.getInputStream()); var zip = new ZipOutputStream(Files.newOutputStream(target))) {
             zip.setLevel(Deflater.BEST_SPEED);
             for (ZipEntry entry; (entry = in.getNextEntry()) != null; ) {
                 zip.putNextEntry(new ZipEntry(entry.getName()));
                 if (entry.getName().equals("appsettings.json")) {
                     ObjectNode settings = (ObjectNode) jsonMapper.readTree(in.readAllBytes());
-                    ((ObjectNode) settings.get("Agent")).put("ServerUrl", server);
+                    ((ObjectNode) settings.get("Worker")).put("ServerUrl", server);
                     zip.write(jsonMapper.writerWithDefaultPrettyPrinter().writeValueAsBytes(settings));
                 } else {
                     in.transferTo(zip);
@@ -91,11 +98,19 @@ public class AgentController {
 
     @GetMapping(value = "/install.ps1", produces = "text/plain;charset=UTF-8")
     public String installScript() throws IOException {
-        String script = new ClassPathResource("agent/install.ps1").getContentAsString(StandardCharsets.UTF_8);
-        return script.replace("__SERVER__", serverUrl());
+        return script("worker/install.ps1");
+    }
+
+    @GetMapping(value = "/install.sh", produces = "text/plain;charset=UTF-8")
+    public String installShellScript() throws IOException {
+        return script("worker/install.sh").replace("\r", "");
+    }
+
+    private static String script(String resource) throws IOException {
+        return new ClassPathResource(resource).getContentAsString(StandardCharsets.UTF_8).replace("__SERVER__", serverUrl());
     }
 
     private static String serverUrl() {
-        return ServletUriComponentsBuilder.fromCurrentContextPath().toUriString().replace("'", "");
+        return ServletUriComponentsBuilder.fromCurrentContextPath().toUriString().replace("'", "").replace("\"", "");
     }
 }

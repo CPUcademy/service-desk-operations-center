@@ -29,7 +29,7 @@ public class WebSocketConfig implements WebSocketConfigurer {
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
         registry.addHandler(handler, PATH).setAllowedOrigins(allowedOrigins);
-        registry.addHandler(relay, RemoteRelayHandler.AGENT_PATH, RemoteRelayHandler.VIEWER_PATH).setAllowedOrigins(allowedOrigins);
+        registry.addHandler(relay, RemoteRelayHandler.AGENT_PATHS[0], RemoteRelayHandler.AGENT_PATHS[1], RemoteRelayHandler.VIEWER_PATH).setAllowedOrigins(allowedOrigins);
     }
 
     @Bean

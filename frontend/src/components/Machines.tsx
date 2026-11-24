@@ -6,7 +6,8 @@ import "./Tickets.css";
 
 const API_BASE = API_URL || window.location.origin;
 const DEFENDER_COMMAND = `Set-ItemProperty -Path "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\CI\\Policy" -Name VerifiedAndReputablePolicyState -Value 0 -Type DWord; CiTool.exe -r`;
-const INSTALL_COMMAND = `powershell -NoProfile -ExecutionPolicy Bypass -Command "irm ${API_BASE}/api/v1/agent/install.ps1 | iex"`;
+const INSTALL_COMMAND = `powershell -NoProfile -ExecutionPolicy Bypass -Command "irm ${API_BASE}/api/v1/worker/install.ps1 | iex"`;
+const LINUX_INSTALL_COMMAND = `sudo bash -c "$(curl -fsSL ${API_BASE}/api/v1/worker/install.sh)"`;
 
 const EMPTY = { hostname: "", ipAddress: "", type: MACHINE_TYPES[0], department: DEPARTMENTS[0], ownerId: "" };
 
@@ -23,7 +24,7 @@ function WorkerKey() {
   function reveal() {
     setShown(true);
     if (key !== null) return;
-    apiFetch("/api/v1/agent/key")
+    apiFetch("/api/v1/worker/key")
       .then(async response => {
         if (response.ok) return setKey((await response.json()).key);
         setKey(response.status === 404 ? "not available: deploy the latest backend"
@@ -176,12 +177,12 @@ function Machines() {
       </form>
 
       <section className="ticket-form install-guide" aria-labelledby="install-title">
-        <h2 id="install-title">Install the agent on a computer</h2>
+        <h2 id="install-title">Install the worker on a Windows machine</h2>
         <ol>
           <li>Add the machine in the form above and note its ID (the #number, also shown on the Dashboard).</li>
           <li>
             On that machine, open PowerShell as Administrator. Antivirus software often flags remote support tools,
-            so first allow the workers's folders. With Microsoft Defender run:
+            so first allow the worker's folders. With Microsoft Defender run:
             <CopyCommand command={DEFENDER_COMMAND} />
             With other antivirus software, add the same two folders as exclusions in its settings.
           </li>
@@ -194,8 +195,27 @@ function Machines() {
           </li>
         </ol>
         <p className="install-note">
-          Running the same command again updates the agent. Without PowerShell internet access, <a href={`${API_BASE}/api/v1/agent/download`}>download the agent package</a>,
+          Running the same command again updates the worker. Without PowerShell internet access, <a href={`${API_BASE}/api/v1/worker/download`}>download the worker package</a>,
           extract it and run <code>install-service.ps1</code> as Administrator.
+        </p>
+      </section>
+
+      <section className="ticket-form install-guide" aria-labelledby="install-linux-title">
+        <h2 id="install-linux-title">Install the worker on a Linux server</h2>
+        <ol>
+          <li>Add the machine in the form above and note its ID.</li>
+          <li>
+            On the server, as a user with sudo rights (needs <code>curl</code> and systemd), run:
+            <CopyCommand command={LINUX_INSTALL_COMMAND} />
+          </li>
+          <li>
+            Answer the three prompts: the machine ID, the worker API key (<WorkerKey />), and whether to allow remote control on that server.
+          </li>
+        </ol>
+        <p className="install-note">
+          Linux servers have no desktop, so remote control there means the shell and file transfer. Running the same command again updates the worker.
+          To install by hand, <a href={`${API_BASE}/api/v1/worker/download?os=linux`}>download the Linux package</a>, extract it and run <code>sudo ./install-worker.sh</code>.
+          Logs: <code>journalctl -u sdoc-worker -f</code>.
         </p>
       </section>
     </div>

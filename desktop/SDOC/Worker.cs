@@ -9,8 +9,12 @@ namespace sdoc
 {
     public class Worker(ILogger<Worker> logger, IConfiguration configuration) : BackgroundService
     {
+#if WINDOWS
         private readonly PerformanceCounter cpuCounter = new PerformanceCounter("Processor", "% Processor Time", "_Total");
         private readonly PerformanceCounter ramCounter = new PerformanceCounter("Memory", "Available MBytes");
+#else
+        private (long idle, long total) lastCpu;
+#endif
         private readonly HttpClient http = new HttpClient();
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -32,14 +36,14 @@ namespace sdoc
             {
                 throw new InvalidOperationException("WORKER_API_KEY must be configured before the worker can send metrics.");
             }
-            if (!Uri.TryCreate(configuration["Agent:ServerUrl"], UriKind.Absolute, out Uri? serverUri))
+            if (!Uri.TryCreate(configuration["Worker:ServerUrl"], UriKind.Absolute, out Uri? serverUri))
             {
-                throw new InvalidOperationException("Agent:ServerUrl must be configured as an absolute URL.");
+                throw new InvalidOperationException("Worker:ServerUrl must be configured as an absolute URL.");
             }
-            int machineId = configuration.GetValue<int>("Agent:MachineId");
+            int machineId = configuration.GetValue<int>("Worker:MachineId");
             if (machineId <= 0)
             {
-                throw new InvalidOperationException("Agent:MachineId must be a positive ID matching a registered machine.");
+                throw new InvalidOperationException("Worker:MachineId must be a positive ID matching a registered machine.");
             }
 
             http.DefaultRequestHeaders.Add("X-Worker-Key", apiKey);
@@ -112,6 +116,7 @@ namespace sdoc
             return null;
         }
 
+#if WINDOWS
         private float GetCpuUsage()
         {
             return cpuCounter.NextValue();
@@ -122,11 +127,27 @@ namespace sdoc
             double total = GC.GetGCMemoryInfo().TotalAvailableMemoryBytes / 1024.0 / 1024.0;
             double free = ramCounter.NextValue();
             double used = total - free;
-            double percent = used / total * 100;
-
-            return new RamInfo(total, used, percent);
-
+            return new RamInfo(total, used, used / total * 100);
         }
+#else
+        private float GetCpuUsage()
+        {
+            long[] fields = File.ReadLines("/proc/stat").First().Split(' ', StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(long.Parse).ToArray();
+            long idle = fields[3] + fields[4];
+            long total = fields.Take(8).Sum();
+            (long lastIdle, long lastTotal) = lastCpu;
+            lastCpu = (idle, total);
+            return total == lastTotal ? 0 : (float)Math.Clamp(100.0 * (1 - (double)(idle - lastIdle) / (total - lastTotal)), 0, 100);
+        }
+
+        private RamInfo GetRamInfo()
+        {
+            var info = File.ReadLines("/proc/meminfo").Select(line => line.Split(':')).ToDictionary(parts => parts[0], parts => long.Parse(parts[1].Trim().Split(' ')[0]));
+            double total = info["MemTotal"] / 1024.0;
+            double used = total - info["MemAvailable"] / 1024.0;
+            return new RamInfo(total, used, used / total * 100);
+        }
+#endif
 
         private string GetIpAddress()
         {
