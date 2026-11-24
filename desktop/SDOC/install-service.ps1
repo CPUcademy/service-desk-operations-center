@@ -9,7 +9,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 do {
-    $machineId = (Read-Host "Machine ID (shown on the Machines page after registering this computer)").Trim()
+    $machineId = (Read-Host "Machine ID (the #number shown next to this computer on the Dashboard)").Trim()
 } until ($machineId -match '^[1-9]\d*$')
 
 do {

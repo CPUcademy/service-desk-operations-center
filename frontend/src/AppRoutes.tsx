@@ -13,12 +13,14 @@ import Diagnostics from "./components/Diagnostics";
 import ProtectedRoute from "./auth/ProtectedRoute";
 import PublicRoute from "./auth/PublicRoute";
 import { ChatProvider } from "./chat/ChatContext";
+import { useAuth } from "./auth/AuthContext";
 
 import "./App.css";
 
 function AppLayout() {
+  const { user } = useAuth();
   return (
-    <ChatProvider>
+    <ChatProvider userId={user?.id ?? 0}>
       <div className="app-layout">
         <Navbar />
 

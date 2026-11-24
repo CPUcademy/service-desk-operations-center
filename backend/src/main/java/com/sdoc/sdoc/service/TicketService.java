@@ -70,6 +70,8 @@ public class TicketService {
 
         Machine machine = machineRepository.findById(ticketFromFrontend.machineId()).orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Machine not found"));
         User user = userRepository.findById(userId).orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Error! Please sign in again."));
+        if (!Boolean.TRUE.equals(user.getIsAdmin()) && !machine.getOwner().getId().equals(user.getId()))
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only report problems with your own computer.");
 
         Ticket ticket = new Ticket();
         ticket.setMachine(machine);

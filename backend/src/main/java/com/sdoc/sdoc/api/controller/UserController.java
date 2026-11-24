@@ -1,5 +1,6 @@
 package com.sdoc.sdoc.api.controller;
 
+import com.sdoc.sdoc.api.dto.ContactDto;
 import com.sdoc.sdoc.api.dto.UserDataDto;
 import com.sdoc.sdoc.persistance.entity.User;
 import com.sdoc.sdoc.security.utilities.SecurityUtils;
@@ -28,6 +29,11 @@ public class UserController {
     @GetMapping
     public List<UserDataDto> getAll() {
         return userService.getAll();
+    }
+
+    @GetMapping("/contacts")
+    public List<ContactDto> contacts(Authentication authentication) {
+        return userService.getContacts(SecurityUtils.getUserId(authentication), SecurityUtils.isAdmin(authentication));
     }
 
     @GetMapping("/me")

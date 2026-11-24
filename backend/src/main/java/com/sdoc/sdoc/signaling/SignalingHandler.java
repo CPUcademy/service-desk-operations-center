@@ -11,23 +11,27 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
-import tools.jackson.databind.node.ObjectNode;
 
 import java.io.IOException;
+import java.time.Instant;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 public class SignalingHandler extends TextWebSocketHandler {
-    private static final Set<String> ALLOWED_TYPES = Set.of("offer", "answer", "ice", "hangup");
-    private static final String USER_ID = "userId";
+    private static final String USER_ID = "userId", IS_ADMIN = "isAdmin";
+    private static final int MAX_TEXT = 2000;
 
     private final Map<Long, ConcurrentWebSocketSessionDecorator> sessions = new ConcurrentHashMap<>();
     private final JsonMapper jsonMapper;
 
     public SignalingHandler(JsonMapper jsonMapper) {
         this.jsonMapper = jsonMapper;
+    }
+
+    public boolean isOnline(long userId) {
+        var session = sessions.get(userId);
+        return session != null && session.isOpen();
     }
 
     @Override
@@ -37,6 +41,7 @@ public class SignalingHandler extends TextWebSocketHandler {
             return;
         }
         session.getAttributes().put(USER_ID, claim.userId());
+        session.getAttributes().put(IS_ADMIN, claim.isAdmin());
         var previous = sessions.put(claim.userId(), new ConcurrentWebSocketSessionDecorator(session, 5_000, 512 * 1024));
         if (previous != null) previous.close(CloseStatus.NORMAL);
     }
@@ -46,28 +51,28 @@ public class SignalingHandler extends TextWebSocketHandler {
         Long from = (Long) session.getAttributes().get(USER_ID);
         if (from == null) return;
 
-        JsonNode node;
+        JsonNode msg;
         try {
-            node = jsonMapper.readTree(message.getPayload());
+            msg = jsonMapper.readTree(message.getPayload());
         } catch (JacksonException e) {
             return;
         }
-        if (!(node instanceof ObjectNode msg) || !ALLOWED_TYPES.contains(msg.path("type").asString(""))) return;
-
+        String text = msg.path("text").asString("").strip();
         long to = msg.path("to").asLong(-1);
-        if (to == from) return;
+        if (!"chat".equals(msg.path("type").asString("")) || text.isEmpty() || text.length() > MAX_TEXT || to == from) return;
 
-        WebSocketSession target = sessions.get(to);
-        if (target == null || !target.isOpen()) {
-            var sender = sessions.get(from);
-            if (sender != null)
-                sender.sendMessage(new TextMessage("{\"type\":\"unavailable\",\"from\":" + to + "}"));
+        var sender = sessions.get(from);
+        var target = sessions.get(to);
+        boolean senderIsAdmin = Boolean.TRUE.equals(session.getAttributes().get(IS_ADMIN));
+        if (target == null || !target.isOpen()
+                || (!senderIsAdmin && !Boolean.TRUE.equals(target.getAttributes().get(IS_ADMIN)))) {
+            if (sender != null) sender.sendMessage(json(Map.of("type", "unavailable", "from", to)));
             return;
         }
 
-        msg.remove("to");
-        msg.put("from", from);
-        target.sendMessage(new TextMessage(jsonMapper.writeValueAsString(msg)));
+        var payload = Map.of("type", "chat", "from", from, "to", to, "text", text, "at", Instant.now().toString());
+        target.sendMessage(json(payload));
+        if (sender != null) sender.sendMessage(json(payload));
     }
 
     @Override
@@ -75,5 +80,9 @@ public class SignalingHandler extends TextWebSocketHandler {
         Long userId = (Long) session.getAttributes().get(USER_ID);
         if (userId == null) return;
         sessions.computeIfPresent(userId, (id, current) -> current.getDelegate() == session ? null : current);
+    }
+
+    private TextMessage json(Object payload) {
+        return new TextMessage(jsonMapper.writeValueAsString(payload));
     }
 }

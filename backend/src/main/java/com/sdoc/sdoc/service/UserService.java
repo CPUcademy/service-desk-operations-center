@@ -1,6 +1,8 @@
 package com.sdoc.sdoc.service;
 
+import com.sdoc.sdoc.api.dto.ContactDto;
 import com.sdoc.sdoc.api.dto.UserDataDto;
+import com.sdoc.sdoc.signaling.SignalingHandler;
 import com.sdoc.sdoc.persistance.entity.User;
 import com.sdoc.sdoc.persistance.repository.RefreshTokenRepository;
 import com.sdoc.sdoc.persistance.repository.UserRepository;
@@ -25,10 +27,18 @@ public class UserService {
     private final BCryptPasswordEncoder passwordEncoder;
     private final RateLimitService rateLimitService;
     private final InputValidationService inputValidationService;
+    private final SignalingHandler signalingHandler;
 
     public List<UserDataDto> getAll() {
         return userRepository.findAll(org.springframework.data.domain.Sort.by("fullName")).stream()
                 .map(user -> new UserDataDto(user.getId(), user.getFullName(), user.getEmail(), user.getIsAdmin()))
+                .toList();
+    }
+
+    public List<ContactDto> getContacts(long userId, boolean isAdmin) {
+        return userRepository.findAll(org.springframework.data.domain.Sort.by("fullName")).stream()
+                .filter(user -> user.getId() != userId && (isAdmin || Boolean.TRUE.equals(user.getIsAdmin())))
+                .map(user -> new ContactDto(user.getId(), user.getFullName(), Boolean.TRUE.equals(user.getIsAdmin()), signalingHandler.isOnline(user.getId())))
                 .toList();
     }
 

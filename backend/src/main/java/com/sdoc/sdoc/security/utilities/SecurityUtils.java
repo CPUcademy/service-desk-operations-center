@@ -12,4 +12,8 @@ public class SecurityUtils {
         JwtClaim principal = (JwtClaim) authentication.getPrincipal();
         return principal.userId();
     }
+
+    public static boolean isAdmin(Authentication authentication) {
+        return authentication != null && authentication.getPrincipal() instanceof JwtClaim claim && claim.isAdmin();
+    }
 }

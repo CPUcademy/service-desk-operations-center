@@ -1,7 +1,11 @@
 import { useEffect, useState, type SubmitEvent } from "react";
 import { apiFetch } from "../api";
+import { API_URL } from "../config";
 import { DEPARTMENTS, MACHINE_TYPES } from "../types/Machine";
 import "./Tickets.css";
+
+const API_BASE = API_URL || window.location.origin;
+const INSTALL_COMMAND = `powershell -NoProfile -ExecutionPolicy Bypass -Command "irm ${API_BASE}/api/v1/agent/install.ps1 | iex"`;
 
 const EMPTY = { hostname: "", ipAddress: "", type: MACHINE_TYPES[0], department: DEPARTMENTS[0], ownerId: "" };
 
@@ -16,6 +20,15 @@ function Machines() {
   const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
   const [saving, setSaving] = useState(false);
   const [owners, setOwners] = useState<Owner[]>([]);
+  const [copied, setCopied] = useState(false);
+
+  function copyCommand() {
+    void navigator.clipboard.writeText(INSTALL_COMMAND).then(() => {
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
   useEffect(() => {
     apiFetch("/api/v1/users")
       .then(response => (response.ok ? response.json() : []))
@@ -45,7 +58,7 @@ function Machines() {
       const body = await response.json().catch(() => null);
       if (!response.ok) throw new Error(body?.message ?? "Failed to add machine.");
       setForm(EMPTY);
-      setMessage({ text: `Machine #${body.id} added. Set MachineId to ${body.id} in the worker configuration.`, error: false });
+      setMessage({ text: `Machine #${body.id} added. Install the agent on it below and enter ${body.id} as its machine ID.`, error: false });
     } catch (error) {
       setMessage({ text: error instanceof Error ? error.message : "Failed to add machine.", error: true });
     } finally {
@@ -122,6 +135,30 @@ function Machines() {
         </div>
       </form>
 
+      <section className="ticket-form install-guide" aria-labelledby="install-title">
+        <h2 id="install-title">Install the agent on a computer</h2>
+        <ol>
+          <li>Add the computer above and note its machine ID (the #number, also shown on the Dashboard).</li>
+          <li>
+            On that computer, open PowerShell as Administrator (Start → type <strong>PowerShell</strong> → Run as administrator) and run:
+            <div className="install-command">
+              <code>{INSTALL_COMMAND}</code>
+              <button type="button" onClick={copyCommand}>{copied ? "Copied" : "Copy"}</button>
+            </div>
+          </li>
+          <li>
+            Answer the three prompts: the machine ID, the worker API key (<code>WORKER_API_KEY</code> from the server settings), and whether to allow remote control on that computer.
+          </li>
+          <li>
+            The computer shows as Online on the Dashboard within a few seconds. To control it remotely, answer <strong>y</strong> to the last prompt
+            and enable remote control from the ⋯ menu on its Dashboard row.
+          </li>
+        </ol>
+        <p className="install-note">
+          Running the same command again updates the agent. Without PowerShell internet access, <a href={`${API_BASE}/api/v1/agent/download`}>download the agent package</a>,
+          extract it and run <code>install-service.ps1</code> as Administrator.
+        </p>
+      </section>
     </div>
   );
 }
