@@ -5,7 +5,8 @@ import { DEPARTMENTS, MACHINE_TYPES } from "../types/Machine";
 import "./Tickets.css";
 
 const API_BASE = API_URL || window.location.origin;
-const INSTALL_COMMAND = `powershell -NoProfile -ExecutionPolicy Bypass -Command "irm ${API_BASE}/api/v1/agent/install.ps1 | iex"`;
+const DEFENDER_COMMAND = `Add-MpPreference -ExclusionPath "C:\\Program Files\\SDOC Agent", "$env:TEMP\\sdoc-agent-install"`;
+const INSTALL_COMMAND =`powershell -NoProfile -ExecutionPolicy Bypass -Command "irm ${API_BASE}/api/v1/agent/install.ps1 | iex"`;
 
 const EMPTY = { hostname: "", ipAddress: "", type: MACHINE_TYPES[0], department: DEPARTMENTS[0], ownerId: "" };
 
@@ -47,20 +48,29 @@ function WorkerKey() {
   );
 }
 
-function Machines() {
-  const [form, setForm] = useState(EMPTY);
-  const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [owners, setOwners] = useState<Owner[]>([]);
+function CopyCommand({ command }: { command: string }) {
   const [copied, setCopied] = useState(false);
 
-  function copyCommand() {
-    void navigator.clipboard.writeText(INSTALL_COMMAND).then(() => {
+  function copy() {
+    void navigator.clipboard.writeText(command).then(() => {
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2000);
     });
   }
 
+  return (
+    <div className="install-command">
+      <code>{command}</code>
+      <button type="button" onClick={copy}>{copied ? "Copied" : "Copy"}</button>
+    </div>
+  );
+}
+
+function Machines() {
+  const [form, setForm] = useState(EMPTY);
+  const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [owners, setOwners] = useState<Owner[]>([]);
   useEffect(() => {
     apiFetch("/api/v1/users")
       .then(response => (response.ok ? response.json() : []))
@@ -90,7 +100,7 @@ function Machines() {
       const body = await response.json().catch(() => null);
       if (!response.ok) throw new Error(body?.message ?? "Failed to add machine.");
       setForm(EMPTY);
-      setMessage({ text: `Machine #${body.id} added. Install the agent on it below and enter ${body.id} as its machine ID.`, error: false });
+      setMessage({ text: `Machine #${body.id} added.`, error: false });
     } catch (error) {
       setMessage({ text: error instanceof Error ? error.message : "Failed to add machine.", error: true });
     } finally {
@@ -170,11 +180,15 @@ function Machines() {
         <ol>
           <li>Add the machine in the form above and note its ID (the #number, also shown on the Dashboard).</li>
           <li>
-            On that machine, open PowerShell as Administrator and run:
-            <div className="install-command">
-              <code>{INSTALL_COMMAND}</code>
-              <button type="button" onClick={copyCommand}>{copied ? "Copied" : "Copy"}</button>
-            </div>
+            On that machine, open PowerShell as Administrator. Antivirus software often flags remote support tools,
+            so first allow the agent's folders. With Microsoft Defender run:
+            <CopyCommand command={DEFENDER_COMMAND} />
+            With other antivirus software, add the same two folders as exclusions in its settings. If it still blocks the install,
+            pause real-time protection only for the install and turn it back on right after.
+          </li>
+          <li>
+            In the same PowerShell window run:
+            <CopyCommand command={INSTALL_COMMAND} />
           </li>
           <li>
             Answer the three prompts: the machine ID, the worker API key (<WorkerKey />), and whether to allow remote control on that computer.

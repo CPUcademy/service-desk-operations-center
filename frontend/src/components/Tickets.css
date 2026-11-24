@@ -609,3 +609,7 @@
     display: none;
   }
 }
+
+.install-command {
+  margin-bottom: 8px;
+}
