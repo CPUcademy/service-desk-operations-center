@@ -1,5 +1,7 @@
 package com.sdoc.sdoc.signaling;
 
+import com.sdoc.sdoc.persistance.entity.Machine;
+import com.sdoc.sdoc.persistance.repository.MachineRepository;
 import com.sdoc.sdoc.security.JwtClaim;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -34,6 +36,8 @@ public class RemoteRelayHandler extends AbstractWebSocketHandler {
     public static final String VIEWER_PATH = "/api/v1/remote/*";
 
     private static final Set<String> SERVICE_TYPES = Set.of("exec", "restart-agent", "cad", "desktop-start", "file-start");
+    // Everything that touches the machine beyond restarting the agent needs remote control enabled
+    private static final Set<String> CONTROL_TYPES = Set.of("exec", "cad", "desktop-start", "file-start", "input");
     private static final Set<String> DESKTOP_TYPES = Set.of("input", "desktop-stop");
     private static final String ROLE = "role", MACHINE = "machine", USER = "user";
     private static final int MAX_COMMAND = 2000;
@@ -42,15 +46,19 @@ public class RemoteRelayHandler extends AbstractWebSocketHandler {
         volatile WebSocketSession service;
         volatile WebSocketSession desktop;
         volatile String desktopToken;
+        volatile Boolean remoteControl;
+        volatile boolean agentAllows;
         final Set<WebSocketSession> viewers = ConcurrentHashMap.newKeySet();
     }
 
     private final Map<Long, Channel> channels = new ConcurrentHashMap<>();
     private final JsonMapper jsonMapper;
+    private final MachineRepository machineRepository;
     private final byte[] workerKey;
 
-    public RemoteRelayHandler(JsonMapper jsonMapper, @Value("${worker.api-key}") String workerKey) {
+    public RemoteRelayHandler(JsonMapper jsonMapper, MachineRepository machineRepository, @Value("${worker.api-key}") String workerKey) {
         this.jsonMapper = jsonMapper;
+        this.machineRepository = machineRepository;
         this.workerKey = workerKey.getBytes(StandardCharsets.UTF_8);
     }
 
@@ -74,6 +82,10 @@ public class RemoteRelayHandler extends AbstractWebSocketHandler {
                     session.close(CloseStatus.POLICY_VIOLATION);
                     return;
                 }
+                if (!allowed(machineId, channel)) {
+                    session.close(CloseStatus.POLICY_VIOLATION);
+                    return;
+                }
                 session.getAttributes().put(ROLE, "desktop");
                 closeQuietly(channel.desktop);
                 channel.desktop = wrap(session, OverflowStrategy.TERMINATE);
@@ -85,7 +97,9 @@ public class RemoteRelayHandler extends AbstractWebSocketHandler {
                 }
                 session.getAttributes().put(ROLE, "service");
                 closeQuietly(channel.service);
+                channel.agentAllows = false;
                 channel.service = wrap(session, OverflowStrategy.TERMINATE);
+                send(channel.service, policyMessage(allowed(machineId, channel)));
             }
             broadcastStatus(channel);
             return;
@@ -99,6 +113,7 @@ public class RemoteRelayHandler extends AbstractWebSocketHandler {
         session.getAttributes().put(USER, claim.userId());
         WebSocketSession viewer = wrap(session, OverflowStrategy.DROP);
         channel.viewers.add(viewer);
+        allowed(machineId, channel);
         viewer.sendMessage(statusMessage(channel));
     }
 
@@ -111,7 +126,7 @@ public class RemoteRelayHandler extends AbstractWebSocketHandler {
 
         if (message instanceof BinaryMessage) {
             if ("desktop".equals(role)) sendAll(channel.viewers, message);
-            else if ("viewer".equals(role)) send(channel.service, message); // file upload chunks
+            else if ("viewer".equals(role) && allowed(machineId, channel)) send(channel.service, message); // file upload chunks
             return;
         }
         if (!(message instanceof TextMessage text)) return;
@@ -126,11 +141,18 @@ public class RemoteRelayHandler extends AbstractWebSocketHandler {
 
         switch (role) {
             case "service" -> {
-                if (type.equals("desktop-token")) channel.desktopToken = node.path("token").asString(null);
-                else sendAll(channel.viewers, text);
+                if (type.equals("desktop-token")) channel.desktopToken = allowed(machineId, channel) ? node.path("token").asString(null) : null;
+                else if (type.equals("hello")) {
+                    channel.agentAllows = node.path("remoteControl").asBoolean(false);
+                    broadcastStatus(channel);
+                } else sendAll(channel.viewers, text);
             }
             case "desktop" -> sendAll(channel.viewers, text);
             case "viewer" -> {
+                if (CONTROL_TYPES.contains(type) && !(allowed(machineId, channel) && channel.agentAllows)) {
+                    deny(session, node, type);
+                    return;
+                }
                 if (SERVICE_TYPES.contains(type)) {
                     if (type.equals("exec") && node.path("command").asString("").length() > MAX_COMMAND) return;
                     log.info("Admin {} -> machine {}: {} {}{}", session.getAttributes().get(USER), machineId, type,
@@ -168,6 +190,47 @@ public class RemoteRelayHandler extends AbstractWebSocketHandler {
         }
     }
 
+    // Called after an admin toggles the flag: tells the agent and tears down a running desktop stream
+    public void applyRemoteControl(long machineId, boolean enabled) {
+        Channel channel = channels.computeIfAbsent(machineId, id -> new Channel());
+        channel.remoteControl = enabled;
+        send(channel.service, policyMessage(enabled));
+        if (!enabled) {
+            channel.desktopToken = null;
+            closeQuietly(channel.desktop);
+        }
+        broadcastStatus(channel);
+    }
+
+    private boolean allowed(long machineId, Channel channel) {
+        Boolean cached = channel.remoteControl;
+        if (cached != null) return cached;
+        boolean enabled = machineRepository.findById(machineId).map(Machine::isRemoteControl).orElse(false);
+        channel.remoteControl = enabled;
+        return enabled;
+    }
+
+    private void deny(WebSocketSession viewer, JsonNode request, String type) {
+        String reason = "Remote control is disabled for this machine.";
+        var reply = jsonMapper.createObjectNode();
+        switch (type) {
+            case "exec" -> reply.put("type", "exec-result").put("output", reason).put("exitCode", -1).set("id", request.path("id"));
+            case "file-start" -> reply.put("type", "file-error").put("error", reason);
+            default -> reply.put("type", "notice").put("text", reason);
+        }
+        if (!type.equals("input")) send(findViewer(viewer), new TextMessage(jsonMapper.writeValueAsString(reply)));
+    }
+
+    private WebSocketSession findViewer(WebSocketSession session) {
+        Long machineId = (Long) session.getAttributes().get(MACHINE);
+        Channel channel = machineId == null ? null : channels.get(machineId);
+        return channel == null ? null : channel.viewers.stream().filter(v -> isSame(v, session)).findFirst().orElse(null);
+    }
+
+    private static TextMessage policyMessage(boolean enabled) {
+        return new TextMessage("{\"type\":\"policy\",\"remoteControl\":" + enabled + "}");
+    }
+
     private static Long machineId(String path) {
         try {
             return Long.parseLong(path.substring(path.lastIndexOf('/') + 1));
@@ -185,7 +248,8 @@ public class RemoteRelayHandler extends AbstractWebSocketHandler {
     }
 
     private TextMessage statusMessage(Channel channel) {
-        return new TextMessage("{\"type\":\"agent\",\"online\":" + (channel.service != null) + ",\"desktop\":" + (channel.desktop != null) + "}");
+        return new TextMessage("{\"type\":\"agent\",\"online\":" + (channel.service != null) + ",\"desktop\":" + (channel.desktop != null)
+                + ",\"remoteControl\":" + Boolean.TRUE.equals(channel.remoteControl) + ",\"agentAllows\":" + channel.agentAllows + "}");
     }
 
     private void broadcastStatus(Channel channel) {

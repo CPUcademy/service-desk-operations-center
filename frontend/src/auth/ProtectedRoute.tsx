@@ -13,7 +13,7 @@ export default function ProtectedRoute({ adminOnly = false }: { adminOnly?: bool
     }
 
     if (adminOnly && !user?.isAdmin) {
-        return <Navigate to="/chat" replace />;
+        return <Navigate to="/tickets" replace />;
     }
 
     return <Outlet />;

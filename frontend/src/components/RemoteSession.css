@@ -467,3 +467,13 @@
 .rs-terminal pre.err {
   color: #ff9b9b;
 }
+
+.rs-locked {
+  margin-bottom: 14px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--warn);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--text-2);
+}

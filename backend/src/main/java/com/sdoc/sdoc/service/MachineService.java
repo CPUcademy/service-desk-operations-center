@@ -1,5 +1,9 @@
 package com.sdoc.sdoc.service;
 
+import com.sdoc.sdoc.api.dto.RemoteControlRequestDto;
+import com.sdoc.sdoc.signaling.RemoteRelayHandler;
+import lombok.extern.slf4j.Slf4j;
+
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.sdoc.sdoc.api.dto.CreateMachineRequestDto;
@@ -20,6 +24,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class MachineService {
@@ -30,6 +35,7 @@ public class MachineService {
     private static final Duration METRICS_TTL = Duration.ofSeconds(10);
     private final MachineRepository machineRepository;
     private final UserRepository userRepository;
+    private final RemoteRelayHandler relay;
     private final Cache<Long, MachineMetricsDto> metrics = Caffeine.newBuilder()
             .expireAfterWrite(METRICS_TTL).maximumSize(10_000).build();
     
@@ -42,7 +48,7 @@ public class MachineService {
     private MachineDto convertToDto(Machine m) {
         MachineMetricsDto latest = metrics.getIfPresent(m.getId());
         return new MachineDto(m.getId(), m.getType(), m.getDepartment(), liveStatus(m.getStatus(), latest),
-                            m.getHostname(), m.getIpAddress(), latest, m.getOwner().getId(), m.getOwner().getFullName());
+                            m.getHostname(), m.getIpAddress(), latest, m.getOwner().getId(), m.getOwner().getFullName(), m.isRemoteControl());
     }
 
     @Transactional(readOnly = true)
@@ -72,6 +78,26 @@ public class MachineService {
         machine.setStatus("offline");
         Machine saved = machineRepository.save(machine);
         return convertToDto(saved);
+    }
+
+    // Enabling needs the hostname typed back so it can't happen by a stray click; disabling is always one step
+    @Transactional
+    public MachineDto setRemoteControl(long machineId, RemoteControlRequestDto dto, long adminId) {
+        if (dto == null || dto.enabled() == null)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid request");
+        Machine machine = machineRepository.findById(machineId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Machine not found"));
+        if (dto.enabled() && !machine.getHostname().equalsIgnoreCase(String.valueOf(dto.confirmHostname()).trim()))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Type the machine's hostname to confirm");
+        machine.setRemoteControl(dto.enabled());
+        log.warn("Admin {} {} remote control for machine {} ({})", adminId, dto.enabled() ? "ENABLED" : "disabled", machineId, machine.getHostname());
+        relay.applyRemoteControl(machineId, dto.enabled());
+        return convertToDto(machine);
+    }
+
+    @Transactional(readOnly = true)
+    public boolean isRemoteControlEnabled(long machineId) {
+        return machineRepository.findById(machineId).map(Machine::isRemoteControl).orElse(false);
     }
 
     public void saveMetrics(Long machineId, MachineMetricsDto dto) {

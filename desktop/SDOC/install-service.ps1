@@ -30,10 +30,18 @@ if ((Resolve-Path $PSScriptRoot).Path -ne $InstallDir) {
 $settingsPath = Join-Path $InstallDir "appsettings.json"
 $settings = Get-Content $settingsPath -Raw | ConvertFrom-Json
 $machineId = Read-Host "MachineId for this computer (number, Enter = keep $($settings.Agent.MachineId))"
+while ($machineId -and $machineId -notmatch '^\d+$') {
+    $machineId = Read-Host "MachineId must be a number"
+}
 if ($machineId) {
     $settings.Agent.MachineId = [int]$machineId
-    $settings | ConvertTo-Json -Depth 10 | Set-Content $settingsPath -Encoding UTF8
 }
+
+# Local consent: without it the agent refuses commands, file transfer and screen control,
+# even if an administrator enables remote control on the server
+$allow = Read-Host "Allow remote control (commands, files, screen) on this computer? [y/N]"
+$settings.Agent | Add-Member -Force -NotePropertyName AllowRemoteControl -NotePropertyValue ($allow -match '^(y|yes)$')
+$settings | ConvertTo-Json -Depth 10 | Set-Content $settingsPath -Encoding UTF8
 
 # 4. Create the service: starts with Windows, restarts itself after a crash
 New-Service -Name $ServiceName `

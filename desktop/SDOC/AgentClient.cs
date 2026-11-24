@@ -18,6 +18,9 @@ namespace sdoc
         private static readonly TimeSpan CommandTimeout = TimeSpan.FromSeconds(60);
 
         private ClientWebSocket? socket;
+        private bool localAllows;
+        private volatile bool serverAllows;
+        private bool RemoteAllowed => localAllows && serverAllows;
         private Upload? upload;
         private readonly SemaphoreSlim sendLock = new(1, 1);
 
@@ -32,6 +35,9 @@ namespace sdoc
                 return;
 
             Uri endpoint = WsUri(server, $"/api/v1/internal/agent/{machineId}");
+            // Local opt-in set at install time; the server can never turn this on remotely
+            localAllows = configuration.GetValue<bool>("Agent:AllowRemoteControl");
+            logger.LogInformation("Remote control allowed locally: {allowed}", localAllows);
             while (!stoppingToken.IsCancellationRequested)
             {
                 try
@@ -41,7 +47,9 @@ namespace sdoc
                     ws.Options.KeepAliveInterval = TimeSpan.FromSeconds(20);
                     await ws.ConnectAsync(endpoint, stoppingToken);
                     socket = ws;
+                    serverAllows = false;
                     logger.LogInformation("Agent channel connected");
+                    await Send(new JsonObject { ["type"] = "hello", ["remoteControl"] = localAllows }, stoppingToken);
                     await ReceiveLoop(ws, server, machineId, stoppingToken);
                 }
                 catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
@@ -66,7 +74,7 @@ namespace sdoc
 
                 if (result.MessageType == WebSocketMessageType.Binary)
                 {
-                    await WriteChunk(message.ToArray(), token);
+                    if (RemoteAllowed) await WriteChunk(message.ToArray(), token);
                     message.SetLength(0);
                     continue;
                 }
@@ -76,8 +84,28 @@ namespace sdoc
                 JsonNode? msg;
                 try { msg = JsonNode.Parse(text); } catch (JsonException) { continue; }
 
-                switch ((string?)msg?["type"])
+                string? type = (string?)msg?["type"];
+                if (type is "exec" or "cad" or "desktop-start" or "file-start" && !RemoteAllowed)
                 {
+                    string reason = localAllows ? "Remote control is disabled for this machine." : "Remote control is not allowed on this machine (local agent setting).";
+                    logger.LogWarning("Refused remote {type}: remote control not allowed", type);
+                    JsonObject reply = type switch
+                    {
+                        "exec" => new JsonObject { ["type"] = "exec-result", ["id"] = msg!["id"]?.DeepClone(), ["output"] = reason, ["exitCode"] = -1 },
+                        "file-start" => new JsonObject { ["type"] = "file-error", ["error"] = reason },
+                        _ => new JsonObject { ["type"] = "notice", ["text"] = reason },
+                    };
+                    await Send(reply, token);
+                    continue;
+                }
+
+                switch (type)
+                {
+                    case "policy":
+                        serverAllows = (bool?)msg!["remoteControl"] ?? false;
+                        logger.LogWarning("Server set remote control: {allowed}", serverAllows);
+                        if (!serverAllows) CloseUpload(delete: true);
+                        break;
                     case "exec":
                         JsonNode? id = msg!["id"]?.DeepClone();
                         string command = (string?)msg["command"] ?? "";
@@ -176,7 +204,7 @@ namespace sdoc
             int exitCode;
             try
             {
-                string script = "& {\n" + command + "\n} 2>&1 | Out-String -Width 160";
+                string script = "$ProgressPreference = 'SilentlyContinue'\n& {\n" + command + "\n} 2>&1 | Out-String -Width 160";
                 var psi = new ProcessStartInfo("powershell.exe",
                     ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-EncodedCommand", Convert.ToBase64String(Encoding.Unicode.GetBytes(script))])
                 {
@@ -193,7 +221,7 @@ namespace sdoc
                 try
                 {
                     await process.WaitForExitAsync(timeout.Token);
-                    output = (await stdout + await stderr).TrimEnd();
+                    output = (await stdout + CleanStderr(await stderr)).TrimEnd();
                     exitCode = process.ExitCode;
                 }
                 catch (OperationCanceledException) when (!token.IsCancellationRequested)
@@ -211,6 +239,14 @@ namespace sdoc
 
             if (output.Length > MaxOutput) output = output[..MaxOutput] + "\n… output truncated";
             await Send(new JsonObject { ["type"] = "exec-result", ["id"] = id, ["output"] = output, ["exitCode"] = exitCode }, token);
+        }
+
+        // powershell.exe writes stream records to a redirected stderr as CLIXML; keep only the error text
+        private static string CleanStderr(string stderr)
+        {
+            if (!stderr.StartsWith("#< CLIXML")) return stderr;
+            return string.Concat(System.Text.RegularExpressions.Regex.Matches(stderr, "<S S=\"Error\">(.*?)</S>")
+                .Select(match => System.Net.WebUtility.HtmlDecode(match.Groups[1].Value).Replace("_x000D__x000A_", "\n")));
         }
 
         private string RestartSelf()

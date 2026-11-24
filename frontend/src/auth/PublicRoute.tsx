@@ -9,7 +9,7 @@ export default function PublicRoute() {
     }
 
     if (user) {
-        return <Navigate to={user.isAdmin ? "/dashboard" : "/chat"} replace />;
+        return <Navigate to={user.isAdmin ? "/dashboard" : "/tickets"} replace />;
     }
 
     return <Outlet />;

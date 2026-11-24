@@ -1,5 +1,8 @@
 package com.sdoc.sdoc.api.controller;
 
+import com.sdoc.sdoc.api.dto.RemoteControlRequestDto;
+import org.springframework.web.bind.annotation.PatchMapping;
+
 import com.sdoc.sdoc.api.dto.CreateMachineRequestDto;
 import com.sdoc.sdoc.api.dto.MachineDto;
 import com.sdoc.sdoc.security.utilities.SecurityUtils;
@@ -32,6 +35,12 @@ public class MachineController {
     @GetMapping("/me")
     public List<MachineDto> getMachinesByOwnerId(Authentication auth) {
         return machineService.getMachinesByOwnerId(SecurityUtils.getUserId(auth));
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @PatchMapping("/{id}/remote-control")
+    public MachineDto setRemoteControl(@PathVariable long id, @RequestBody RemoteControlRequestDto body, Authentication auth) {
+        return machineService.setRemoteControl(id, body, SecurityUtils.getUserId(auth));
     }
 
     @PreAuthorize("hasRole('ADMIN')")

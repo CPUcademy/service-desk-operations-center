@@ -9,5 +9,6 @@ public record MachineDto(
     String ipAddress, 
     MachineMetricsDto metrics,
     Long ownerId,
-    String ownerFullName
+    String ownerFullName,
+    boolean remoteControl
 ) {}

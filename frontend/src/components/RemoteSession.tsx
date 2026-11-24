@@ -14,6 +14,8 @@ const DEFAULT_PATH = "C:\\Users\\Public\\Downloads";
 const FILE_CHUNK = 256 * 1024;
 
 type FileReply = { type: string; error?: string; path?: string };
+
+const OFFLINE = { online: false, desktop: false, remoteControl: false, agentAllows: false };
 const CAD_OPTIONS = ["Lock", "Switch user", "Sign out", "Change a password", "Task Manager"];
 
 const SERVICES: Record<string, string> = {
@@ -146,7 +148,7 @@ function RemoteSession() {
   const [progress, setProgress] = useState<number | null>(null);
   const [transferError, setTransferError] = useState<string | null>(null);
   const [activity, setActivity] = useState<{ at: Date; text: string }[]>([]);
-  const [agent, setAgent] = useState({ online: false, desktop: false });
+  const [agent, setAgent] = useState(OFFLINE);
   const [frame, setFrame] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
 
@@ -195,7 +197,7 @@ function RemoteSession() {
       if (msg.type.startsWith("file-")) {
         fileReply.current?.(msg);
       } else if (msg.type === "agent") {
-        setAgent({ online: msg.online, desktop: msg.desktop });
+        setAgent({ online: msg.online, desktop: msg.desktop, remoteControl: msg.remoteControl, agentAllows: msg.agentAllows });
         if (!msg.desktop) setFrame(null);
         if (!msg.online) {
           setRunning(false);
@@ -211,7 +213,7 @@ function RemoteSession() {
     };
     socket.onclose = () => {
       fileReply.current?.({ type: "file-error", error: "Connection to the server lost." });
-      setAgent({ online: false, desktop: false });
+      setAgent(OFFLINE);
       setFrame(null);
       setRunning(false);
     };
@@ -385,6 +387,11 @@ function RemoteSession() {
   }
 
   const busy = phase !== "live";
+  const controllable = agent.online && agent.remoteControl && agent.agentAllows;
+  const locked = agent.online && !controllable;
+  const lockReason = !agent.remoteControl
+    ? "Remote control is disabled for this machine. An administrator can enable it on the Machines page."
+    : "This machine's agent was installed without remote control permission. Reinstall the agent and allow it to enable control.";
 
   return (
     <div className="rs-page">
@@ -403,7 +410,7 @@ function RemoteSession() {
           )}
         </div>
         <div className="rs-controls">
-          {agent.online && (agent.desktop ? (
+          {controllable && (agent.desktop ? (
             <button type="button" onClick={() => { sendRelay({ type: "desktop-stop" }); log("Released desktop control"); }}>
               <MonitorX size={14} /> Release control
             </button>
@@ -412,11 +419,13 @@ function RemoteSession() {
               <MonitorPlay size={14} /> Take control
             </button>
           ))}
-          <button type="button" onClick={sendCtrlAltDel} disabled={busy}><KeyRound size={14} /> Ctrl+Alt+Del</button>
+          <button type="button" onClick={sendCtrlAltDel} disabled={busy || locked}><KeyRound size={14} /> Ctrl+Alt+Del</button>
           <button type="button" onClick={restartAgent} disabled={busy}><RotateCcw size={14} /> Restart agent</button>
           <button type="button" className="rs-end" onClick={() => navigate(-1)}>End session</button>
         </div>
       </header>
+
+      {locked && <p className="rs-locked" role="status">{lockReason}</p>}
 
       <div className="rs-grid">
         {frame ? (
@@ -482,7 +491,7 @@ function RemoteSession() {
         )}
 
         <section className="rs-panel rs-console" aria-label="Remote PowerShell">
-          <h2>PowerShell Direct · {agent.online ? "live" : "simulated"}{running ? " · running…" : ""}</h2>
+          <h2>PowerShell Direct · {controllable ? "live" : locked ? "locked" : "simulated"}{running ? " · running…" : ""}</h2>
           <div className="rs-terminal" onClick={() => document.getElementById("rs-command")?.focus()}>
             {lines.map((line, index) => <pre key={index} className={line.kind}>{line.text}</pre>)}
             <form onSubmit={handleCommand}>
@@ -492,7 +501,7 @@ function RemoteSession() {
                 value={command}
                 onChange={event => setCommand(event.target.value)}
                 onKeyDown={handleHistory}
-                disabled={busy || running}
+                disabled={busy || running || locked}
                 autoComplete="off"
                 spellCheck={false}
               />
@@ -509,7 +518,7 @@ function RemoteSession() {
             <input id="rs-path" value={path} onChange={event => setPath(event.target.value)} disabled={progress !== null} />
             {progress !== null && <progress max={100} value={progress} />}
             {transferError && <p className="rs-error" role="alert">{transferError}</p>}
-            <button type="submit" disabled={busy || progress !== null}><Upload size={14} /> Send file</button>
+            <button type="submit" disabled={busy || locked || progress !== null}><Upload size={14} /> Send file</button>
           </form>
 
           <section className="rs-panel rs-activity" aria-label="Session activity">

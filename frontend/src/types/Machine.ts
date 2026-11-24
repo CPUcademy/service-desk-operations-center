@@ -8,6 +8,7 @@ export interface Machine {
     metrics: MachineMetrics | null;
     ownerId: number;
     ownerFullName: string;
+    remoteControl: boolean;
 }
 
 export interface MachineMetrics {

@@ -30,4 +30,7 @@ public class Machine {
     @JoinColumn(name = "\"ownerId\"", nullable = false)
     private User owner;
 
+    @Column(name = "\"remoteControl\"", nullable = false)
+    private boolean remoteControl;
+
 }

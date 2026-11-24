@@ -14,7 +14,6 @@ const PORTS = [
 ];
 
 const IPV4 = /^(25[0-5]|2[0-4]\d|1?\d?\d)(\.(25[0-5]|2[0-4]\d|1?\d?\d)){3}$/;
-const HOSTNAME = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$/i;
 
 type Target = { ip: string; label: string; down: boolean };
 type PortResult = { port: number; name: string; state: "open" | "closed" | "filtered" | "checking"; ms: number | null };
@@ -33,15 +32,21 @@ function mac(seed: string, oui = "") {
   return (oui ? [oui, ...bytes.slice(3)] : bytes).join(":");
 }
 
-function resolve(input: string, machines: Machine[]): Target | string {
-  const value = input.trim();
-  const known = machines.find(m => m.hostname.toLowerCase() === value.toLowerCase() || m.ipAddress === value);
-  if (known) return { ip: known.ipAddress, label: `${known.hostname} [${known.ipAddress}]`, down: known.status.toLowerCase() === "offline" };
-  if (IPV4.test(value)) return { ip: value, label: value, down: unit(value) < 0.15 };
-  if (!HOSTNAME.test(value)) return "Enter a valid IPv4 address or hostname.";
-  const h = hash(value);
-  const ip = `10.${20 + (h & 7)}.${(h >> 8) & 255}.${1 + ((h >> 16) % 254)}`;
-  return { ip, label: `${value} [${ip}]`, down: false };
+function resolve(id: string, machines: Machine[]): Target | string {
+  const machine = machines.find(m => String(m.id) === id);
+  if (!machine) return "Select a host.";
+  return { ip: machine.ipAddress, label: `${machine.hostname} [${machine.ipAddress}]`, down: machine.status.toLowerCase() === "offline" };
+}
+
+type HostSelectProps = { machines: Machine[]; value: string; onChange: (id: string) => void; disabled?: boolean };
+
+function HostSelect({ machines, value, onChange, disabled = false }: HostSelectProps) {
+  return (
+    <select className="dg-select" value={value} onChange={event => onChange(event.target.value)} aria-label="Host" disabled={disabled || machines.length === 0} required>
+      <option value="" disabled>{machines.length ? "Select a host" : "No machines registered"}</option>
+      {machines.map(m => <option key={m.id} value={m.id}>{m.hostname} · {m.ipAddress}</option>)}
+    </select>
+  );
 }
 
 function PortChecker({ machines }: { machines: Machine[] }) {
@@ -72,8 +77,8 @@ function PortChecker({ machines }: { machines: Machine[] }) {
     <section className="rs-panel">
       <h2>Port status</h2>
       <form className="dg-form" onSubmit={check}>
-        <input value={host} onChange={event => setHost(event.target.value)} placeholder="Hostname or IP" aria-label="Host" list="dg-hosts" required />
-        <button type="submit">Check ports</button>
+        <HostSelect machines={machines} value={host} onChange={setHost} />
+        <button type="submit" disabled={!host}>Check ports</button>
       </form>
       {error && <p className="rs-error dg-pad" role="alert">{error}</p>}
       <table className="dg-table">
@@ -177,13 +182,13 @@ function NetConsole({ machines }: { machines: Machine[] }) {
     <section className="rs-panel">
       <h2>Ping &amp; traceroute</h2>
       <form className="dg-form" onSubmit={event => { event.preventDefault(); start("ping"); }}>
-        <input value={host} onChange={event => setHost(event.target.value)} placeholder="Hostname or IP" aria-label="Target" list="dg-hosts" required disabled={running} />
+        <HostSelect machines={machines} value={host} onChange={setHost} disabled={running} />
         {running ? (
           <button type="button" className="dg-stop" onClick={handleStop}>Stop</button>
         ) : (
           <>
-            <button type="submit">Ping -t</button>
-            <button type="button" onClick={() => host.trim() && start("tracert")}>Traceroute</button>
+            <button type="submit" disabled={!host}>Ping -t</button>
+            <button type="button" onClick={() => start("tracert")} disabled={!host}>Traceroute</button>
           </>
         )}
         <button type="button" className="dg-ghost" onClick={() => setLines([])} disabled={running}>Clear</button>
@@ -259,12 +264,12 @@ function SubnetScanner({ machines }: { machines: Machine[] }) {
   const [scanning, setScanning] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
 
-  const source = machines.find(m => String(m.id) === machineId) ?? machines[0];
+  const source = machines.find(m => String(m.id) === machineId);
   const prefix = source?.ipAddress.split(".").slice(0, 3).join(".");
 
   async function scan(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!source || !prefix || !IPV4.test(`${prefix}.0`)) return setNote("Select a machine with a valid IPv4 address.");
+    if (!source || !prefix || !IPV4.test(`${prefix}.0`)) return setNote("Select a host with a valid IPv4 address.");
     setFound([]);
     setNote(null);
     setScanning(`Scanning ${prefix}.0/24 from ${source.hostname}…`);
@@ -276,8 +281,8 @@ function SubnetScanner({ machines }: { machines: Machine[] }) {
       setFound(hosts);
       setNote(`Agent on ${source.hostname} is offline · simulated result, ${hosts.length} hosts.`);
     } else {
-      const hosts = output.split(/\r?\n/).filter(line => line.includes("|")).map(line => {
-        const [ip, macAddress, name, state] = line.split("|");
+      const hosts = output.split(/\r?\n/).map(line => line.trim().split("|")).filter(parts => parts.length === 4 && IPV4.test(parts[0])).map(parts => {
+        const [ip, macAddress, name, state] = parts;
         const known = machines.find(m => m.ipAddress === ip);
         return {
           ip,
@@ -297,11 +302,8 @@ function SubnetScanner({ machines }: { machines: Machine[] }) {
     <section className="rs-panel dg-wide">
       <h2>Subnet discovery (ARP / broadcast)</h2>
       <form className="dg-form" onSubmit={scan}>
-        <select className="dg-select" value={source ? String(source.id) : ""} onChange={event => setMachineId(event.target.value)} aria-label="Scan from machine" disabled={scanning !== null}>
-          {machines.length === 0 && <option value="">No machines</option>}
-          {machines.map(m => <option key={m.id} value={m.id}>{m.hostname} · {m.ipAddress}</option>)}
-        </select>
-        <button type="submit" disabled={scanning !== null || !source}>{scanning === null ? `Scan ${prefix ?? "—"}.0/24` : "Scanning…"}</button>
+        <HostSelect machines={machines} value={machineId} onChange={setMachineId} disabled={scanning !== null} />
+        <button type="submit" disabled={scanning !== null || !source}>{scanning !== null ? "Scanning…" : prefix ? `Scan ${prefix}.0/24` : "Scan subnet"}</button>
       </form>
       {scanning && <p className="rs-note">{scanning}</p>}
       <table className="dg-table">
@@ -312,7 +314,7 @@ function SubnetScanner({ machines }: { machines: Machine[] }) {
           ))}
         </tbody>
       </table>
-      {!scanning && <p className="rs-note">{note ?? "Pick the machine to scan from; its agent sweeps its own /24 subnet."}</p>}
+      {!scanning && <p className="rs-note">{note ?? "Pick a host; its agent sweeps the host's own /24 subnet. Needs remote control enabled for that machine."}</p>}
     </section>
   );
 }
@@ -330,9 +332,6 @@ function Diagnostics() {
   return (
     <div className="rs-page">
       <header className="rs-head"><h1>Network diagnostics</h1></header>
-      <datalist id="dg-hosts">
-        {machines.map(m => <option key={m.id} value={m.hostname}>{m.ipAddress}</option>)}
-      </datalist>
       <div className="dg-grid">
         <PortChecker machines={machines} />
         <NetConsole machines={machines} />

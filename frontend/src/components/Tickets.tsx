@@ -71,7 +71,7 @@ type NewTicketFormProps = {
 };
 
 function NewTicketForm({ isAdmin, cooked, onToggleCooked, onCreated }: NewTicketFormProps) {
-  const [machines, setMachines] = useState<Machine[]>([]);
+  const [machines, setMachines] = useState<Machine[] | null>(null);
   const [machineId, setMachineId] = useState("");
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState(3);
@@ -91,10 +91,12 @@ function NewTicketForm({ isAdmin, cooked, onToggleCooked, onCreated }: NewTicket
   }
 
   useEffect(() => {
-    if (!isAdmin) return;
-    apiFetch("/api/v1/machines")
+    apiFetch(isAdmin ? "/api/v1/machines" : "/api/v1/machines/me")
       .then(response => (response.ok ? response.json() : []))
-      .then((data: Machine[]) => setMachines(data))
+      .then((data: Machine[]) => {
+        setMachines(data);
+        if (data.length === 1) setMachineId(String(data[0].id));
+      })
       .catch(() => setMachines([]));
   }, [isAdmin]);
 
@@ -122,7 +124,7 @@ function NewTicketForm({ isAdmin, cooked, onToggleCooked, onCreated }: NewTicket
       if (!response.ok) throw new Error(await errorMessage(response, "Failed to create the ticket."));
 
       onCreated(normalize(await response.json()));
-      setMachineId("");
+      setMachineId(machines?.length === 1 ? String(machines[0].id) : "");
       setDescription("");
       setPriority(3);
       setMessage({ text: "Ticket submitted.", error: false });
@@ -140,15 +142,19 @@ function NewTicketForm({ isAdmin, cooked, onToggleCooked, onCreated }: NewTicket
       <div className="ticket-form-row">
         <div className="ticket-field">
           <label htmlFor="ticketMachine">MACHINE</label>
-          {isAdmin && machines.length > 0 ? (
+          {machines === null ? (
+            <select id="ticketMachine" disabled><option>Loading…</option></select>
+          ) : machines.length > 0 ? (
             <select id="ticketMachine" value={machineId} onChange={e => setMachineId(e.target.value)} required>
-              <option value="" disabled>Select a machine</option>
+              <option value="" disabled>{isAdmin ? "Select a machine" : "Select your computer"}</option>
               {machines.map(machine => (
                 <option key={machine.id} value={machine.id}>
-                  {machine.hostname} (#{machine.id})
+                  {machine.hostname} · {machine.type}{isAdmin ? ` · ${machine.ownerFullName}` : ""}
                 </option>
               ))}
             </select>
+          ) : !isAdmin ? (
+            <p className="ticket-no-machine">No computer is assigned to you yet. Ask IT to register it.</p>
           ) : (
             <input
               id="ticketMachine"
@@ -194,7 +200,7 @@ function NewTicketForm({ isAdmin, cooked, onToggleCooked, onCreated }: NewTicket
             {message.text}
           </p>
         )}
-        <button type="submit" className="ticket-submit" disabled={submitting}>
+        <button type="submit" className="ticket-submit" disabled={submitting || (!isAdmin && !machines?.length)}>
           {submitting ? "Submitting…" : "Submit ticket"}
         </button>
       </div>

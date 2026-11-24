@@ -31,6 +31,8 @@ namespace sdoc
             var hello = new JsonObject { ["type"] = "desktop", ["width"] = bounds.Width, ["height"] = bounds.Height };
             await ws.SendAsync(Encoding.UTF8.GetBytes(hello.ToJsonString()), WebSocketMessageType.Text, true, CancellationToken.None);
             _ = Task.Run(() => ReceiveInput(ws, bounds, stop));
+            bool userStopped = false;
+            ShowBanner(bounds, () => { userStopped = true; stop.Cancel(); });
 
             using var parameters = new EncoderParameters(1);
             parameters.Param[0] = new EncoderParameter(System.Drawing.Imaging.Encoder.Quality, 55L);
@@ -46,6 +48,57 @@ namespace sdoc
             catch (Exception ex) when (ex is OperationCanceledException or WebSocketException)
             {
             }
+
+            if (userStopped && ws.State == WebSocketState.Open)
+            {
+                var notice = new JsonObject { ["type"] = "notice", ["text"] = "The user stopped remote control from their screen." };
+                await ws.SendAsync(Encoding.UTF8.GetBytes(notice.ToJsonString()), WebSocketMessageType.Text, true, CancellationToken.None);
+                await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "stopped by user", CancellationToken.None);
+            }
+        }
+
+        // Always-on-top bar so the user knows their screen is shared and can end it at any time
+        private static void ShowBanner(Rectangle bounds, Action onStop)
+        {
+            var thread = new Thread(() =>
+            {
+                var form = new System.Windows.Forms.Form
+                {
+                    FormBorderStyle = System.Windows.Forms.FormBorderStyle.None,
+                    StartPosition = System.Windows.Forms.FormStartPosition.Manual,
+                    TopMost = true,
+                    ShowInTaskbar = false,
+                    BackColor = Color.FromArgb(3, 22, 50),
+                    Size = new Size(520, 44),
+                };
+                form.Location = new Point(bounds.X + (bounds.Width - form.Width) / 2, bounds.Y);
+                var label = new System.Windows.Forms.Label
+                {
+                    Text = "IT support is viewing and controlling this screen",
+                    Dock = System.Windows.Forms.DockStyle.Fill,
+                    TextAlign = ContentAlignment.MiddleLeft,
+                    Padding = new System.Windows.Forms.Padding(14, 0, 0, 0),
+                    ForeColor = Color.White,
+                    Font = new Font("Segoe UI", 10f, FontStyle.Bold),
+                };
+                var button = new System.Windows.Forms.Button
+                {
+                    Text = "Stop",
+                    Dock = System.Windows.Forms.DockStyle.Right,
+                    Width = 90,
+                    FlatStyle = System.Windows.Forms.FlatStyle.Flat,
+                    BackColor = Color.FromArgb(229, 56, 59),
+                    ForeColor = Color.White,
+                    Font = new Font("Segoe UI", 10f, FontStyle.Bold),
+                };
+                button.FlatAppearance.BorderSize = 0;
+                button.Click += (_, _) => { onStop(); form.Close(); };
+                form.Controls.Add(label);
+                form.Controls.Add(button);
+                System.Windows.Forms.Application.Run(form);
+            }) { IsBackground = true };
+            thread.SetApartmentState(ApartmentState.STA);
+            thread.Start();
         }
 
         private static byte[]? Capture(Rectangle bounds, EncoderParameters parameters)

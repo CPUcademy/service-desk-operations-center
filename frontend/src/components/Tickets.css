@@ -459,3 +459,11 @@
 .ticket-attend + .ticket-fix-button {
   margin-left: 0;
 }
+
+.ticket-no-machine {
+  display: flex;
+  align-items: center;
+  min-height: 34px;
+  color: var(--text-2);
+  font-size: 13px;
+}

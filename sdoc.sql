@@ -15,6 +15,7 @@ CREATE TABLE "Machine" (
   "hostname" VARCHAR(255) NOT NULL,
   "ipAddress" VARCHAR(255) NOT NULL,
   "ownerId" BIGINT NOT NULL,
+  "remoteControl" BOOLEAN NOT NULL DEFAULT FALSE,
   PRIMARY KEY ("id"),
   CONSTRAINT "FK_Machine_ownerId"
     FOREIGN KEY ("ownerId")
