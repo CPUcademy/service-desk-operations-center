@@ -613,3 +613,13 @@
 .install-command {
   margin-bottom: 8px;
 }
+
+.install-warning {
+  display: block;
+  padding: 8px 10px;
+  border-left: 3px solid var(--warn);
+  border-radius: 4px;
+  background: #e08a000f;
+  color: var(--text);
+  font-size: 12px;
+}

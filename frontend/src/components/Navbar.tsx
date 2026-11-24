@@ -33,14 +33,16 @@ function Navbar() {
 
   return (
     <>
-      <button
-        className="navbar-toggle"
-        onClick={() => setIsOpen(true)}
-        aria-label="Otwórz menu"
-        aria-expanded={isOpen}
-      >
-        <Menu size={18} />
-      </button>
+      {!isOpen && (
+        <button
+          className="navbar-toggle"
+          onClick={() => setIsOpen(true)}
+          aria-label="Otwórz menu"
+          aria-expanded={isOpen}
+        >
+          <Menu size={18} />
+        </button>
+      )}
 
       {isOpen && (
         <div

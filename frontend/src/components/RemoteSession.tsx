@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type MouseEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, KeyRound, MonitorPlay, MonitorX, RotateCcw, Upload } from "lucide-react";
+import { ArrowLeft, KeyRound, Maximize2, MonitorPlay, MonitorX, RotateCcw, Upload } from "lucide-react";
 import { apiFetch } from "../api";
 import { WS_BASE } from "../config";
 import { setInSession, type Machine } from "../types/Machine";
@@ -14,6 +14,9 @@ const DEFAULT_PATH = "C:\\Users\\Public\\Downloads";
 const FILE_CHUNK = 256 * 1024;
 const formatSize = (bytes: number) =>
   bytes < 1024 ? `${bytes} B` : bytes < 1024 ** 2 ? `${(bytes / 1024).toFixed(0)} KB` : `${(bytes / 1024 ** 2).toFixed(1)} MB`;
+
+type KeyboardLock = { lock?: () => Promise<void>; unlock?: () => void };
+const keyboardLock = () => (navigator as Navigator & { keyboard?: KeyboardLock }).keyboard;
 
 const OFFLINE: Agent ={ online: false, desktop: false, remoteControl: false, agentAllows: false };
 
@@ -39,6 +42,9 @@ function RemoteSession() {
 
   const relay = useRef<WebSocket | null>(null);
   const lastMove = useRef(0);
+  const screen = useRef<HTMLElement>(null);
+  const pressed = useRef(new Set<number>());
+  const [focusMode, setFocusMode] = useState(false);
   const consoleEnd = useRef<HTMLDivElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const fileReply = useRef<((msg: FileReply) => void) | null>(null);
@@ -124,10 +130,69 @@ function RemoteSession() {
     sendRelay({ type: "input", kind, x: (event.clientX - rect.left) / rect.width, y: (event.clientY - rect.top) / rect.height, button: event.button });
   }
 
-  function key(event: KeyboardEvent<HTMLElement>, kind: "keydown" | "keyup") {
-    event.preventDefault();
-    sendRelay({ type: "input", kind, key: event.keyCode });
+  function sendKey(code: number, kind: "keydown" | "keyup") {
+    if (kind === "keydown") pressed.current.add(code);
+    else pressed.current.delete(code);
+    sendRelay({ type: "input", kind, key: code });
   }
+
+  function releaseKeys() {
+    pressed.current.forEach(code => sendRelay({ type: "input", kind: "keyup", key: code }));
+    pressed.current.clear();
+  }
+
+  function key(event: KeyboardEvent<HTMLElement>, kind: "keydown" | "keyup") {
+    if (focusMode) return;
+    event.preventDefault();
+    sendKey(event.keyCode, kind);
+  }
+
+  async function enterFocusMode() {
+    const element = screen.current;
+    if (!element) return;
+    try {
+      await element.requestFullscreen();
+    } catch {
+      return;
+    }
+    await keyboardLock()?.lock?.().catch(() => undefined);
+    element.focus();
+    setFocusMode(true);
+  }
+
+  function exitFocusMode() {
+    releaseKeys();
+    keyboardLock()?.unlock?.();
+    if (document.fullscreenElement) void document.exitFullscreen();
+    setFocusMode(false);
+  }
+
+  useEffect(() => {
+    if (!focusMode) return;
+    const capture = (kind: "keydown" | "keyup") => (event: globalThis.KeyboardEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (kind === "keydown" && event.ctrlKey && event.shiftKey && event.key === "F12") return exitFocusMode();
+      if (event.key !== "F12" || !event.ctrlKey) sendKey(event.keyCode, kind);
+    };
+    const down = capture("keydown");
+    const up = capture("keyup");
+    const fullscreenChanged = () => { if (!document.fullscreenElement) exitFocusMode(); };
+    window.addEventListener("keydown", down, true);
+    window.addEventListener("keyup", up, true);
+    document.addEventListener("fullscreenchange", fullscreenChanged);
+    return () => {
+      window.removeEventListener("keydown", down, true);
+      window.removeEventListener("keyup", up, true);
+      document.removeEventListener("fullscreenchange", fullscreenChanged);
+    };
+  }, [focusMode]);
+
+  useEffect(() => {
+    const blur = () => releaseKeys();
+    window.addEventListener("blur", blur);
+    return () => window.removeEventListener("blur", blur);
+  }, []);
 
   function action(type: string, entry: string) {
     if (sendRelay({ type })) log(entry);
@@ -235,6 +300,11 @@ function RemoteSession() {
           ) : (
             <button type="button" onClick={() => action("desktop-start", "Requested desktop control")}><MonitorPlay size={14} /> Take control</button>
           ))}
+          {controllable && frame && (
+            <button type="button" onClick={() => void enterFocusMode()} title="Full screen, all keys go to the remote computer. Exit with Ctrl+Shift+F12.">
+              <Maximize2 size={14} /> Focus mode
+            </button>
+          )}
           {controllable && <button type="button" onClick={() => action("cad", "Ctrl+Alt+Del requested")}><KeyRound size={14} /> Ctrl+Alt+Del</button>}
           {online && <button type="button" onClick={() => action("restart-agent", "Support agent restart requested")}><RotateCcw size={14} /> Restart agent</button>}
           <button type="button" className="rs-end" onClick={() => navigate(-1)}>End session</button>
@@ -244,12 +314,19 @@ function RemoteSession() {
       <div className="rs-grid">
         {frame ? (
           <section
+            ref={screen}
             className="rs-screen is-live"
             aria-label="Remote desktop (click to focus keyboard)"
             tabIndex={0}
             onKeyDown={event => key(event, "keydown")}
             onKeyUp={event => key(event, "keyup")}
+            onBlur={() => { if (!focusMode) releaseKeys(); }}
           >
+            {focusMode && (
+              <div className="rs-focus-hint" role="status">
+                Focus mode: every key goes to {machine?.hostname ?? "the remote computer"}. Press <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F12</kbd> to exit.
+              </div>
+            )}
             <img
               src={frame}
               alt={`Desktop of ${machine?.hostname ?? "machine"}`}
