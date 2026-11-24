@@ -99,7 +99,6 @@ public class JwtService {
         }
     }
 
-    // Expiry is inherited across rotations, so a session lasts at most one refresh-token lifetime from sign-in.
     public String generateRefreshToken(User user, Instant expiresAt) {
         String tokenId = UUID.randomUUID().toString();
         String rawSecret = UUID.randomUUID().toString();

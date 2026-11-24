@@ -57,7 +57,6 @@ public class AuthService {
     @Value("${auth.cookie.same-site}")
     private String sameSite;
 
-    // Compared against when the email is unknown, so response time doesn't reveal which emails exist.
     private String dummyHash;
     @PostConstruct
     void init() {
@@ -94,7 +93,6 @@ public class AuthService {
             throw invalidCredentials();
 
         String ipKey = "login-ip:" + clientIp + ":" + email;
-        // ponytail: an attacker can keep a known email locked out (≤10 min per 11 failures)
         String emailKey = "login-email:" + email;
         rateLimitService.checkLoginLockout(ipKey);
         rateLimitService.checkLoginLockout(emailKey);

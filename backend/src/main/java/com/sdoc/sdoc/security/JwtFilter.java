@@ -19,7 +19,6 @@ import java.io.IOException;
 import java.util.List;
 
 public class JwtFilter extends OncePerRequestFilter {
-    // Every /api/v1/auth endpoint is public; authenticated endpoints must live elsewhere.
     static final String PUBLIC_PREFIX = "/api/v1/auth/";
     private final JwtService jwtService;
     private final TokenRevocationService tokenRevocationService;

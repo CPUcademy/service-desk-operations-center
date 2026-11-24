@@ -1,4 +1,3 @@
-
 import { NavLink } from "react-router-dom";
 import { useState } from "react";
 import { LayoutGrid, Menu, MessageSquare, Network, Server, Ticket, X } from "lucide-react";
@@ -33,7 +32,6 @@ function Navbar() {
 
   return (
     <>
-      {/* Przycisk otwierania menu */}
       <button
         className="navbar-toggle"
         onClick={() => setIsOpen(true)}
@@ -43,7 +41,6 @@ function Navbar() {
         <Menu size={18} />
       </button>
 
-      {/* Przyciemnione tło */}
       {isOpen && (
         <div
           className="navbar-overlay"
@@ -51,10 +48,8 @@ function Navbar() {
         />
       )}
 
-      {/* Sidebar */}
       <aside className={`navbar ${isOpen ? "open" : ""}`}>
 
-        {/* Górny pasek menu */}
         <div className="navbar-header">
           <button
             className="navbar-close"
@@ -84,7 +79,6 @@ function Navbar() {
           ))}
         </nav>
 
-        {/* Profil użytkownika */}
         <div className="navbar-profile">
           <NavLink
             to="/profile"

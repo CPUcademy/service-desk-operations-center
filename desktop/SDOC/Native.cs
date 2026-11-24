@@ -78,7 +78,6 @@ namespace sdoc
         private const uint CreateUnicodeEnvironment = 0x400;
         private const uint CreateNoWindow = 0x08000000;
 
-        // Starts a process on the desktop of the user signed in at the console. Requires LocalSystem.
         public static void StartInActiveSession(string exe, string args)
         {
             uint sessionId = WTSGetActiveConsoleSessionId();

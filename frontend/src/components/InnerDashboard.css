@@ -42,8 +42,6 @@
   font-weight: 600;
 }
 
-/* Summary */
-
 .summary {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -100,8 +98,6 @@
   width: 55%;
   height: 40px;
 }
-
-/* Hosts */
 
 .hosts {
   margin-top: 14px;

@@ -41,7 +41,6 @@ export function getMachineState(machine: Machine): MachineState {
     return m && (m.cpuUsage >= 90 || m.ramUsed / m.ramTotal >= 0.9) ? "alert" : "online";
 }
 
-// ponytail: sessions tracked per browser in localStorage; move to a backend status if technicians must see each other's sessions
 const SESSIONS_KEY = "machines.inSession";
 
 function sessionIds(): number[] {

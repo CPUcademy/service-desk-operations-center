@@ -23,8 +23,6 @@
   font-weight: 700;
 }
 
-/* Form */
-
 .ticket-form {
   display: flex;
   flex-direction: column;
@@ -155,8 +153,6 @@
   color: var(--bad);
 }
 
-/* Easter egg: click the PRIORITY label five times in a row */
-
 .ticket-cook-toggle {
   user-select: none;
 }
@@ -164,8 +160,6 @@
 .tickets-page.cooked .ticket-cook-toggle {
   color: #c2410c;
 }
-
-/* List */
 
 .ticket-list-section {
   margin-top: 14px;
@@ -298,7 +292,6 @@
 .priority-2 { background: #e08a001a; color: #b86f00; }
 .priority-3 { background: var(--subtle); color: var(--text-2); }
 
-/* Cooked mode: steak colours, from rare pink to charcoal */
 .cooked .priority-1 { background: #292524; color: #fafaf9; }
 .cooked .priority-2 { background: #e7d2c0; color: #6b3f1d; }
 .cooked .priority-3 { background: #fce7f3; color: #be185d; }

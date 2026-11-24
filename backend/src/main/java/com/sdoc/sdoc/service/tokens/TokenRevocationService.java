@@ -20,7 +20,6 @@ public class TokenRevocationService {
         revokedTokens.put(JwtService.sha256(token), true);
     }
 
-    // Revokes access tokens issued before now; truncated because JWT iat has second precision.
     public void revokeUser(Long userId) {
         revokedUsers.put(userId, Instant.now().truncatedTo(ChronoUnit.SECONDS));
     }

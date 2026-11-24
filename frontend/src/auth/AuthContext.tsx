@@ -28,7 +28,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
 
-    // apiFetch refreshes an expired access cookie from the refresh cookie before giving up
     async function checkAuth(): Promise<boolean> {
         try {
             const response = await apiFetch('/api/v1/users/me');
@@ -49,12 +48,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
     }
 
-    // Revokes the tokens server-side and clears both cookies; the UI logs out even if the call fails
     async function logout() {
         try {
             await apiFetch('/api/v1/auth/logout', { method: 'POST' });
         } catch {
-            // Server unreachable: the cookies stay, and the next visit re-checks them
         }
         setUser(null);
     }

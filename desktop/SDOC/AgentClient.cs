@@ -9,7 +9,6 @@ using Microsoft.Win32;
 
 namespace sdoc
 {
-    // Live channel to the server: runs remote commands, restarts the agent, sends Ctrl+Alt+Del and starts desktop streaming.
     public class AgentClient(ILogger<AgentClient> logger, IConfiguration configuration) : BackgroundService
     {
         public const string ServiceName = "SDOCAgent";
@@ -35,7 +34,7 @@ namespace sdoc
                 return;
 
             Uri endpoint = WsUri(server, $"/api/v1/internal/agent/{machineId}");
-            // Local opt-in set at install time; the server can never turn this on remotely
+            // Local opt-in; the server can't override it
             localAllows = configuration.GetValue<bool>("Agent:AllowRemoteControl");
             logger.LogInformation("Remote control allowed locally: {allowed}", localAllows);
             while (!stoppingToken.IsCancellationRequested)
@@ -241,7 +240,6 @@ namespace sdoc
             await Send(new JsonObject { ["type"] = "exec-result", ["id"] = id, ["output"] = output, ["exitCode"] = exitCode }, token);
         }
 
-        // powershell.exe writes stream records to a redirected stderr as CLIXML; keep only the error text
         private static string CleanStderr(string stderr)
         {
             if (!stderr.StartsWith("#< CLIXML")) return stderr;
@@ -253,7 +251,7 @@ namespace sdoc
         {
             if (!WindowsServiceHelpers.IsWindowsService())
                 return "Agent is not running as a Windows service; restart it manually.";
-            // The child survives the service stopping and starts it again
+            // The child outlives the service stop
             Process.Start(new ProcessStartInfo("cmd.exe", $"/c net stop {ServiceName} & net start {ServiceName}") { CreateNoWindow = true, UseShellExecute = false });
             logger.LogWarning("Agent restart requested remotely");
             return "Agent restarting…";
@@ -265,7 +263,7 @@ namespace sdoc
                 return "Ctrl+Alt+Del needs the agent running as a Windows service.";
             using (RegistryKey key = Registry.LocalMachine.CreateSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System"))
             {
-                // 1 = services may generate the secure attention sequence
+                // 1 = services may send SAS
                 if (key.GetValue("SoftwareSASGeneration") is not int value || (value & 1) == 0)
                     key.SetValue("SoftwareSASGeneration", 1, RegistryValueKind.DWord);
             }

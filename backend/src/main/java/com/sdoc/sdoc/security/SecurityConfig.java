@@ -1,5 +1,6 @@
 package com.sdoc.sdoc.security;
 
+import com.sdoc.sdoc.api.controller.AgentController;
 import com.sdoc.sdoc.api.controller.InternalMachineController;
 import com.sdoc.sdoc.service.RateLimitService;
 import com.sdoc.sdoc.service.auth.AuthService;
@@ -35,7 +36,7 @@ import org.springframework.http.HttpMethod;
 @EnableScheduling
 @EnableMethodSecurity
 public class SecurityConfig {
-    // CSRF is covered by the CORS origin allowlist plus JSON-only request bodies (cookies are SameSite=None for the cross-site frontend)
+    // CSRF: CORS allowlist + JSON-only bodies
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http, JwtService jwtService, TokenRevocationService tokenRevocationService,
                                            AuthService authService, RateLimitService rateLimitService, CorsConfigurationSource corsConfigurationSource,
@@ -58,6 +59,7 @@ public class SecurityConfig {
                     .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                     .requestMatchers(JwtFilter.PUBLIC_PREFIX + "**").permitAll()
                     .requestMatchers(InternalMachineController.PREFIX + "**").permitAll()
+                    .requestMatchers(AgentController.PREFIX + "/**").permitAll()
                     .anyRequest().authenticated()
             ).addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(new RateLimitFilter(rateLimitService), JwtFilter.class);

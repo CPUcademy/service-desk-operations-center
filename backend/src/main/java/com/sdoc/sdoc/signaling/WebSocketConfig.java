@@ -29,15 +29,14 @@ public class WebSocketConfig implements WebSocketConfigurer {
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
         registry.addHandler(handler, PATH).setAllowedOrigins(allowedOrigins);
-        // Agents send no Origin header, which Spring treats as same-origin
         registry.addHandler(relay, RemoteRelayHandler.AGENT_PATH, RemoteRelayHandler.VIEWER_PATH).setAllowedOrigins(allowedOrigins);
     }
 
     @Bean
     public ServletServerContainerFactoryBean webSocketContainer() {
         var container = new ServletServerContainerFactoryBean();
-        container.setMaxTextMessageBufferSize(64 * 1024); // room for SDP offers and command output
-        container.setMaxBinaryMessageBufferSize(2 * 1024 * 1024); // desktop JPEG frames
+        container.setMaxTextMessageBufferSize(64 * 1024);
+        container.setMaxBinaryMessageBufferSize(2 * 1024 * 1024);
         return container;
     }
 }

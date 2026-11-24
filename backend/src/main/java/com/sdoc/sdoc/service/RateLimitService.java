@@ -10,7 +10,6 @@ import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 
-// ponytail: in-memory, resets on restart and isn't shared across replicas; move to Redis when running >1 instance.
 @Service
 public class RateLimitService {
     private static final long MAX_KEYS = 100_000;

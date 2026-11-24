@@ -138,7 +138,6 @@ function EditMachine({ machine, onSaved, onClose }: { machine: Machine; onSaved:
     );
 }
 
-// Row menu: disabling is one click; enabling needs the hostname typed back (the server checks it too)
 function RowMenu({ machine, onChange }: { machine: Machine; onChange: (machine: Machine) => void }) {
     const [open, setOpen] = useState(false);
     const [typed, setTyped] = useState("");

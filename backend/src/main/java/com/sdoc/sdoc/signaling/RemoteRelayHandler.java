@@ -27,8 +27,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-// Relays between a machine's agent (service + desktop helper) and the admins viewing it.
-// ponytail: in-memory channels, single backend instance; move to a shared broker if the backend scales out
 @Slf4j
 @Component
 public class RemoteRelayHandler extends AbstractWebSocketHandler {
@@ -36,7 +34,6 @@ public class RemoteRelayHandler extends AbstractWebSocketHandler {
     public static final String VIEWER_PATH = "/api/v1/remote/*";
 
     private static final Set<String> SERVICE_TYPES = Set.of("exec", "restart-agent", "cad", "desktop-start", "file-start");
-    // Everything that touches the machine beyond restarting the agent needs remote control enabled
     private static final Set<String> CONTROL_TYPES = Set.of("exec", "cad", "desktop-start", "file-start", "input");
     private static final Set<String> DESKTOP_TYPES = Set.of("input", "desktop-stop");
     private static final String ROLE = "role", MACHINE = "machine", USER = "user";
@@ -126,7 +123,7 @@ public class RemoteRelayHandler extends AbstractWebSocketHandler {
 
         if (message instanceof BinaryMessage) {
             if ("desktop".equals(role)) sendAll(channel.viewers, message);
-            else if ("viewer".equals(role) && allowed(machineId, channel)) send(channel.service, message); // file upload chunks
+            else if ("viewer".equals(role) && allowed(machineId, channel)) send(channel.service, message);
             return;
         }
         if (!(message instanceof TextMessage text)) return;
@@ -190,7 +187,6 @@ public class RemoteRelayHandler extends AbstractWebSocketHandler {
         }
     }
 
-    // Called after an admin toggles the flag: tells the agent and tears down a running desktop stream
     public void applyRemoteControl(long machineId, boolean enabled) {
         Channel channel = channels.computeIfAbsent(machineId, id -> new Channel());
         channel.remoteControl = enabled;

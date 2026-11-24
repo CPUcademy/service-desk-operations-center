@@ -1,0 +1,12 @@
+.git
+.idea
+.vscode
+**/.vs
+**/node_modules
+**/bin
+**/obj
+**/publish
+**/target
+**/.env
+frontend
+*.md

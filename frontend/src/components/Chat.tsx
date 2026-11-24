@@ -1,4 +1,3 @@
-
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Search, Plus, Send, X } from "lucide-react";
 import { type PeerStatus } from "../chat/usePeerChat";
@@ -135,7 +134,6 @@ function Chat() {
                     key={id}
                     className={`chat-list-item ${peerId === id ? "active" : ""}`}
                     onClick={() => {
-                      // Re-clicking the live conversation would tear it down and wipe its messages
                       const live = status === "connected" || status === "connecting";
                       if (peerId !== id || !live) connect(id);
                     }}

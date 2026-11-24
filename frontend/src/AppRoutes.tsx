@@ -1,4 +1,3 @@
-
 import { Routes, Route, Navigate, Outlet } from "react-router-dom";
 
 import Login from "./components/Login";
@@ -34,12 +33,10 @@ function AppLayout() {
 export default function AppRoutes() {
   return (
     <Routes>
-      {/* Public pages */}
       <Route element={<PublicRoute />}>
         <Route path="/login" element={<Login />} />
       </Route>
 
-      {/* Private pages */}
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
 
@@ -57,7 +54,6 @@ export default function AppRoutes() {
         </Route>
       </Route>
 
-      {/* Unknown pages */}
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );

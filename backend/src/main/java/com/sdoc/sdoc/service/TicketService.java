@@ -104,5 +104,4 @@ public class TicketService {
             ticketRepository.countByPriorityAndIsFixedFalse(3));
     }
 
-    // 1 - critical, 2 - high, 3 - medium
 }

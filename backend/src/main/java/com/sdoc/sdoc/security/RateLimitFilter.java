@@ -21,7 +21,6 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        // Workers may share one NAT IP
         return "OPTIONS".equalsIgnoreCase(request.getMethod()) || request.getRequestURI().startsWith(InternalMachineController.PREFIX);
     }
 

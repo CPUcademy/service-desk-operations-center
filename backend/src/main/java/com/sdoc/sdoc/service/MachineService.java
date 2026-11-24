@@ -92,7 +92,6 @@ public class MachineService {
         machine.setIpAddress(dto.ipAddress());
     }
 
-    // Enabling needs the hostname typed back so it can't happen by a stray click; disabling is always one step
     @Transactional
     public MachineDto setRemoteControl(long machineId, RemoteControlRequestDto dto, long adminId) {
         if (dto == null || dto.enabled() == null)

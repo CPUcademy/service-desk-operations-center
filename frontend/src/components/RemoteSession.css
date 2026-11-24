@@ -150,8 +150,6 @@
   font-weight: 500;
 }
 
-/* Remote screen */
-
 .rs-screen {
   position: relative;
   display: flex;
@@ -175,8 +173,6 @@
 .rs-wide {
   grid-column: 1 / -1;
 }
-
-/* Console */
 
 .rs-terminal {
   height: 280px;

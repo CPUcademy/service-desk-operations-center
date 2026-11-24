@@ -202,7 +202,6 @@ function NetConsole({ machines }: { machines: Machine[] }) {
   );
 }
 
-// Runs one PowerShell command through the machine's agent; resolves null when the agent is offline
 function runOnAgent(machineId: number, command: string): Promise<string | null> {
   return new Promise(resolve => {
     const socket = new WebSocket(`${WS_BASE}/api/v1/remote/${machineId}`);
@@ -225,7 +224,6 @@ function runOnAgent(machineId: number, command: string): Promise<string | null> 
   });
 }
 
-// Scans the subnet the agent is actually on (the registered IP may be stale)
 const SUBNET_SCRIPT = `
 $ProgressPreference = 'SilentlyContinue'
 $config = Get-NetIPConfiguration | Where-Object { $_.IPv4DefaultGateway -and $_.NetAdapter.Status -eq 'Up' } | Select-Object -First 1

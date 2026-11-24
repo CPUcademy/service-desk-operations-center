@@ -5,8 +5,6 @@ type ChatContextValue = ReturnType<typeof usePeerChat> & { conversations: number
 
 const ChatContext = createContext<ChatContextValue | null>(null);
 
-// Lives in the app layout so the signalling socket, peer connection and
-// messages survive navigating between pages instead of resetting with <Chat />.
 export function ChatProvider({ children }: { children: ReactNode }) {
   const chat = usePeerChat();
   const [conversations, setConversations] = useState<number[]>([]);

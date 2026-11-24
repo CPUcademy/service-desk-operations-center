@@ -8,9 +8,6 @@ using System.Text.Json.Nodes;
 
 namespace sdoc
 {
-    // Runs inside the signed-in user's session (sdoc.exe --desktop <server> <machineId> <token>):
-    // streams the primary screen as JPEG frames and replays the technician's mouse and keyboard.
-    // ponytail: JPEG frames over the relay (~5 fps); switch to WebRTC video if bandwidth or latency matter
     public static class DesktopHelper
     {
         private const int MaxWidth = 1600;
@@ -57,7 +54,6 @@ namespace sdoc
             }
         }
 
-        // Always-on-top bar so the user knows their screen is shared and can end it at any time
         private static void ShowBanner(Rectangle bounds, Action onStop)
         {
             var thread = new Thread(() =>
@@ -134,7 +130,7 @@ namespace sdoc
             }
             catch (System.ComponentModel.Win32Exception)
             {
-                return null; // secure desktop (UAC, lock screen) can't be captured from the user session
+                return null;
             }
         }
 

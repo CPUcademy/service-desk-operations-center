@@ -159,7 +159,6 @@ function RemoteSession() {
     setCommand(inRange ? history[next] : "");
   }
 
-  // Stop-and-wait: one chunk in flight, the agent acknowledges each before the next is sent
   async function upload(file: File, target: string) {
     const socket = relay.current;
     if (!socket) return;
