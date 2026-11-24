@@ -67,8 +67,7 @@
 }
 
 .rs-controls button,
-.rs-transfer button,
-.rs-chat-status button {
+.rs-transfer button {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -114,6 +113,13 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) 320px;
   gap: 14px;
+}
+
+.rs-screen {
+  grid-column: 1 / -1;
+  justify-self: center;
+  width: 100%;
+  max-width: calc(78vh * 16 / 10);
 }
 
 .rs-panel {
@@ -330,81 +336,6 @@
   text-align: center;
 }
 
-/* Chat */
-
-.rs-chat {
-  height: 0;
-  min-height: 100%;
-}
-
-.rs-chat-status {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 14px;
-  border-bottom: 1px solid var(--border);
-  color: var(--text-2);
-  font-size: 12px;
-}
-
-.rs-chat-status button {
-  height: 24px;
-}
-
-.rs-messages {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 6px;
-  min-height: 160px;
-  padding: 12px 14px;
-  overflow-y: auto;
-}
-
-.rs-message {
-  align-self: flex-start;
-  max-width: 85%;
-  padding: 6px 10px;
-  border-radius: 4px;
-  background: var(--subtle);
-  overflow-wrap: anywhere;
-}
-
-.rs-message.mine {
-  align-self: flex-end;
-  background: var(--navy);
-  color: #fff;
-}
-
-.rs-chat-input {
-  display: flex;
-  gap: 6px;
-  padding: 10px;
-  border-top: 1px solid var(--border);
-}
-
-.rs-chat-input input,
-.rs-transfer input:not([type="file"]) {
-  flex: 1;
-  min-width: 0;
-  height: 30px;
-  padding: 0 10px;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  background: var(--subtle);
-  color: var(--text);
-  font: 400 13px var(--sans);
-}
-
-.rs-chat-input button {
-  width: 30px;
-  border: none;
-  border-radius: 4px;
-  background: var(--navy);
-  color: #fff;
-  cursor: pointer;
-}
-
 /* Console */
 
 .rs-terminal {
@@ -514,14 +445,6 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .rs-chat {
-    height: auto;
-    min-height: 0;
-  }
-
-  .rs-messages {
-    max-height: 240px;
-  }
 }
 
 .rs-screen.is-live {

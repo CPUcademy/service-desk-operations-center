@@ -14,9 +14,11 @@ namespace sdoc
     {
         public const string ServiceName = "SDOCAgent";
         private const int MaxOutput = 32 * 1024;
+        private const long MaxUpload = 500L * 1024 * 1024;
         private static readonly TimeSpan CommandTimeout = TimeSpan.FromSeconds(60);
 
         private ClientWebSocket? socket;
+        private Upload? upload;
         private readonly SemaphoreSlim sendLock = new(1, 1);
 
         public static Uri WsUri(Uri server, string path) =>
@@ -62,6 +64,13 @@ namespace sdoc
                 message.Write(buffer, 0, result.Count);
                 if (!result.EndOfMessage) continue;
 
+                if (result.MessageType == WebSocketMessageType.Binary)
+                {
+                    await WriteChunk(message.ToArray(), token);
+                    message.SetLength(0);
+                    continue;
+                }
+
                 string text = Encoding.UTF8.GetString(message.ToArray());
                 message.SetLength(0);
                 JsonNode? msg;
@@ -83,8 +92,81 @@ namespace sdoc
                     case "desktop-start":
                         await Notice(await StartDesktop(server, machineId, token), token);
                         break;
+                    case "file-start":
+                        await StartFile(msg!, token);
+                        break;
                 }
             }
+            CloseUpload(delete: true);
+        }
+
+        private async Task StartFile(JsonNode msg, CancellationToken token)
+        {
+            CloseUpload(delete: true);
+            string folder = (string?)msg["path"] ?? "";
+            string name = Path.GetFileName((string?)msg["name"] ?? "");
+            long size = (long?)msg["size"] ?? -1;
+            try
+            {
+                if (!Path.IsPathFullyQualified(folder)) throw new IOException("Destination must be an absolute path.");
+                if (name.Length == 0) throw new IOException("Missing file name.");
+                if (size is < 0 or > MaxUpload) throw new IOException($"Files up to {MaxUpload / 1024 / 1024} MB are supported.");
+                Directory.CreateDirectory(folder);
+                string target = Path.Combine(folder, name);
+                upload = new Upload(new FileStream(target, FileMode.Create, FileAccess.Write), target, size);
+                logger.LogInformation("Receiving file {target} ({size} bytes)", target, size);
+                await FileProgress(token);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+            {
+                CloseUpload(delete: true);
+                await Send(new JsonObject { ["type"] = "file-error", ["error"] = ex.Message }, token);
+            }
+        }
+
+        private async Task WriteChunk(byte[] chunk, CancellationToken token)
+        {
+            if (upload == null) return;
+            try
+            {
+                if (upload.Received + chunk.Length > upload.Size) throw new IOException("Received more data than announced.");
+                await upload.Stream.WriteAsync(chunk, token);
+                upload.Received += chunk.Length;
+                await FileProgress(token);
+            }
+            catch (IOException ex)
+            {
+                CloseUpload(delete: true);
+                await Send(new JsonObject { ["type"] = "file-error", ["error"] = ex.Message }, token);
+            }
+        }
+
+        private async Task FileProgress(CancellationToken token)
+        {
+            if (upload!.Received < upload.Size)
+            {
+                await Send(new JsonObject { ["type"] = "file-progress", ["received"] = upload.Received }, token);
+                return;
+            }
+            string target = upload.Path;
+            CloseUpload(delete: false);
+            await Send(new JsonObject { ["type"] = "file-done", ["path"] = target }, token);
+        }
+
+        private void CloseUpload(bool delete)
+        {
+            if (upload == null) return;
+            upload.Stream.Dispose();
+            if (delete) File.Delete(upload.Path);
+            upload = null;
+        }
+
+        private sealed class Upload(FileStream stream, string path, long size)
+        {
+            public FileStream Stream { get; } = stream;
+            public string Path { get; } = path;
+            public long Size { get; } = size;
+            public long Received { get; set; }
         }
 
         private async Task Exec(JsonNode? id, string command, CancellationToken token)

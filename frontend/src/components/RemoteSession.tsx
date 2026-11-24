@@ -1,10 +1,8 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type MouseEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, KeyRound, MonitorPlay, MonitorX, RotateCcw, Send, Upload } from "lucide-react";
+import { ArrowLeft, KeyRound, MonitorPlay, MonitorX, RotateCcw, Upload } from "lucide-react";
 import { apiFetch } from "../api";
 import { WS_BASE } from "../config";
-import { useAuth } from "../auth/AuthContext";
-import { useChat } from "../chat/ChatContext";
 import { setInSession, type Machine } from "../types/Machine";
 import "./RemoteSession.css";
 
@@ -13,6 +11,9 @@ type Line = { text: string; kind: "in" | "out" | "err" };
 type Transfer = { name: string; size: number; path: string };
 
 const DEFAULT_PATH = "C:\\Users\\Public\\Downloads";
+const FILE_CHUNK = 256 * 1024;
+
+type FileReply = { type: string; error?: string; path?: string };
 const CAD_OPTIONS = ["Lock", "Switch user", "Sign out", "Change a password", "Task Manager"];
 
 const SERVICES: Record<string, string> = {
@@ -129,8 +130,6 @@ function RemoteSession() {
   const { id } = useParams();
   const navigate = useNavigate();
   const machineId = Number(id);
-  const { user } = useAuth();
-  const chat = useChat();
 
   const [machine, setMachine] = useState<Machine | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -147,7 +146,6 @@ function RemoteSession() {
   const [progress, setProgress] = useState<number | null>(null);
   const [transferError, setTransferError] = useState<string | null>(null);
   const [activity, setActivity] = useState<{ at: Date; text: string }[]>([]);
-  const [text, setText] = useState("");
   const [agent, setAgent] = useState({ online: false, desktop: false });
   const [frame, setFrame] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
@@ -155,9 +153,8 @@ function RemoteSession() {
   const relay = useRef<WebSocket | null>(null);
   const lastMove = useRef(0);
   const consoleEnd = useRef<HTMLDivElement>(null);
-  const chatEnd = useRef<HTMLDivElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
-  const chatStarted = useRef(false);
+  const fileReply = useRef<((msg: FileReply) => void) | null>(null);
 
   const log = (entry: string) => setActivity(current => [{ at: new Date(), text: entry }, ...current]);
 
@@ -195,10 +192,15 @@ function RemoteSession() {
         return;
       }
       const msg = JSON.parse(event.data);
-      if (msg.type === "agent") {
+      if (msg.type.startsWith("file-")) {
+        fileReply.current?.(msg);
+      } else if (msg.type === "agent") {
         setAgent({ online: msg.online, desktop: msg.desktop });
         if (!msg.desktop) setFrame(null);
-        if (!msg.online) setRunning(false);
+        if (!msg.online) {
+          setRunning(false);
+          fileReply.current?.({ type: "file-error", error: "Agent disconnected." });
+        }
       } else if (msg.type === "exec-result") {
         write(msg.output || (msg.exitCode === 0 ? "" : `Exit code ${msg.exitCode}`), msg.exitCode === 0 ? "out" : "err");
         setRunning(false);
@@ -208,6 +210,7 @@ function RemoteSession() {
       }
     };
     socket.onclose = () => {
+      fileReply.current?.({ type: "file-error", error: "Connection to the server lost." });
       setAgent({ online: false, desktop: false });
       setFrame(null);
       setRunning(false);
@@ -248,18 +251,7 @@ function RemoteSession() {
   }, [phase]);
 
   useEffect(() => { consoleEnd.current?.scrollIntoView({ block: "nearest" }); }, [lines]);
-  useEffect(() => { chatEnd.current?.scrollIntoView({ block: "nearest" }); }, [chat.messages]);
   useEffect(() => { if (!running) document.getElementById("rs-command")?.focus({ preventScroll: true }); }, [running]);
-
-  const ownerId = machine?.ownerId ?? null;
-  const canChat = ownerId !== null && ownerId !== user?.id;
-  const chatLive = chat.peerId === ownerId && (chat.status === "connected" || chat.status === "connecting");
-
-  useEffect(() => {
-    if (!canChat || chatStarted.current || !chat.signalReady || ownerId === null) return;
-    chatStarted.current = true;
-    if (!chatLive) void chat.connect(ownerId);
-  }, [canChat, chat, chatLive, ownerId]);
 
   function sendCtrlAltDel() {
     if (agent.online) {
@@ -328,12 +320,46 @@ function RemoteSession() {
     setCommand(inRange ? history[next] : "");
   }
 
+  // Stop-and-wait: one chunk in flight, the agent acknowledges each before the next is sent
+  async function upload(file: File, target: string) {
+    const socket = relay.current;
+    if (!socket) return;
+    const reply = () => new Promise<FileReply>(resolve => { fileReply.current = resolve; });
+    setProgress(0);
+    let pending = reply();
+    sendRelay({ type: "file-start", id: Date.now(), name: file.name, path: target, size: file.size });
+    let msg = await pending;
+    for (let offset = 0; msg.type === "file-progress" && offset < file.size;) {
+      const chunk = await file.slice(offset, offset + FILE_CHUNK).arrayBuffer();
+      pending = reply();
+      socket.send(chunk);
+      offset += chunk.byteLength;
+      msg = await pending;
+      setProgress(offset / file.size * 100);
+    }
+    fileReply.current = null;
+    if (msg.type === "file-done") {
+      setTransfers(list => [...list, { name: file.name, size: file.size, path: target }]);
+      log(`Transferred ${file.name} → ${msg.path ?? target}`);
+      setFile(null);
+      if (fileInput.current) fileInput.current.value = "";
+    } else {
+      setTransferError(msg.error ?? "Transfer failed.");
+      log(`Transfer of ${file.name} failed`);
+    }
+    window.setTimeout(() => setProgress(null), 600);
+  }
+
   function handleTransfer(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const target = path.trim().replace(/\\+$/, "");
     if (!file) return setTransferError("Choose a file.");
     if (!/^[a-z]:\\[^<>:"/|?*]*$/i.test(target)) return setTransferError("Enter an absolute Windows path, e.g. C:\\Users\\Public\\Downloads.");
     setTransferError(null);
+    if (agent.online) {
+      void upload(file, target);
+      return;
+    }
     let done = 0;
     setProgress(0);
     const interval = window.setInterval(() => {
@@ -347,11 +373,6 @@ function RemoteSession() {
       if (fileInput.current) fileInput.current.value = "";
       window.setTimeout(() => setProgress(null), 600);
     }, 150);
-  }
-
-  function handleSend(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (text.trim() && chat.send(text.trim())) setText("");
   }
 
   if (error) {
@@ -459,32 +480,6 @@ function RemoteSession() {
           )}
         </section>
         )}
-
-        <aside className="rs-panel rs-chat" aria-label="Chat with user">
-          <h2>Chat · {machine?.ownerFullName ?? "user"}</h2>
-          {!canChat ? (
-            <p className="rs-note">{machine ? "You are the owner of this machine." : "Loading…"}</p>
-          ) : (
-            <>
-              <div className="rs-chat-status">
-                {chat.peerId !== ownerId ? "Not connected" : chat.status === "connected" ? "Connected" : chat.status === "connecting" ? "Connecting…" : "User unavailable"}
-                {chat.peerId === ownerId && (chat.status === "unavailable" || chat.status === "disconnected") && (
-                  <button type="button" onClick={() => void chat.connect(ownerId)}>Retry</button>
-                )}
-              </div>
-              <div className="rs-messages">
-                {chat.peerId === ownerId && chat.messages.map(message => (
-                  <div key={message.id} className={`rs-message ${message.fromMe ? "mine" : ""}`}>{message.text}</div>
-                ))}
-                <div ref={chatEnd} />
-              </div>
-              <form className="rs-chat-input" onSubmit={handleSend}>
-                <input value={text} onChange={event => setText(event.target.value)} placeholder="Message the user…" disabled={chat.peerId !== ownerId || chat.status !== "connected"} />
-                <button type="submit" aria-label="Send" disabled={chat.peerId !== ownerId || chat.status !== "connected" || !text.trim()}><Send size={14} /></button>
-              </form>
-            </>
-          )}
-        </aside>
 
         <section className="rs-panel rs-console" aria-label="Remote PowerShell">
           <h2>PowerShell Direct · {agent.online ? "live" : "simulated"}{running ? " · running…" : ""}</h2>

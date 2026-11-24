@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { apiFetch } from "../api";
+import { WS_BASE } from "../config";
 import type { Machine } from "../types/Machine";
 import "./RemoteSession.css";
 import "./Diagnostics.css";
@@ -196,79 +197,122 @@ function NetConsole({ machines }: { machines: Machine[] }) {
   );
 }
 
-function SubnetScanner({ machines }: { machines: Machine[] }) {
-  const [subnet, setSubnet] = useState("");
-  const [found, setFound] = useState<Found[]>([]);
-  const [progress, setProgress] = useState<number | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const timer = useRef<number | undefined>(undefined);
+// Runs one PowerShell command through the machine's agent; resolves null when the agent is offline
+function runOnAgent(machineId: number, command: string): Promise<string | null> {
+  return new Promise(resolve => {
+    const socket = new WebSocket(`${WS_BASE}/api/v1/remote/${machineId}`);
+    const id = Date.now();
+    let sent = false;
+    const finish = (value: string | null) => {
+      resolve(value);
+      socket.close();
+    };
+    socket.onmessage = event => {
+      if (typeof event.data !== "string") return;
+      const msg = JSON.parse(event.data);
+      if (msg.type === "agent" && !msg.online) finish(null);
+      else if (msg.type === "agent" && !sent) {
+        sent = true;
+        socket.send(JSON.stringify({ type: "exec", id, command }));
+      } else if (msg.type === "exec-result" && msg.id === id) finish(msg.output ?? "");
+    };
+    socket.onclose = () => resolve(null);
+  });
+}
 
-  const defaultSubnet = machines[0] ? `${machines[0].ipAddress.split(".").slice(0, 3).join(".")}.0/24` : "192.168.1.0/24";
+const subnetScript = (prefix: string) => `
+$prefix = '${prefix}'
+$tasks = 1..254 | ForEach-Object { (New-Object System.Net.NetworkInformation.Ping).SendPingAsync("$prefix.$_", 400) }
+try { [System.Threading.Tasks.Task]::WaitAll([System.Threading.Tasks.Task[]]$tasks) } catch {}
+$neighbors = Get-NetNeighbor -AddressFamily IPv4 |
+  Where-Object { $_.IPAddress -like "$prefix.*" -and $_.State -notin 'Unreachable','Incomplete' -and $_.LinkLayerAddress -notin '','00-00-00-00-00-00','FF-FF-FF-FF-FF-FF' } |
+  Group-Object IPAddress | ForEach-Object { $_.Group[0] }
+$lookups = @($neighbors | ForEach-Object { [pscustomobject]@{ ip = $_.IPAddress; task = [System.Net.Dns]::GetHostEntryAsync($_.IPAddress) } })
+if ($lookups.Count) { try { [void][System.Threading.Tasks.Task]::WaitAll([System.Threading.Tasks.Task[]]$lookups.task, 4000) } catch {} }
+$names = @{}
+foreach ($l in $lookups) { if ($l.task.Status -eq 'RanToCompletion') { $names[$l.ip] = $l.task.Result.HostName } }
+$neighbors | ForEach-Object { "$($_.IPAddress)|$($_.LinkLayerAddress)|$($names[$_.IPAddress])|$($_.State)" }
+Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -like "$prefix.*" } | ForEach-Object { "$($_.IPAddress)|this machine|$env:COMPUTERNAME|Self" }
+`;
 
-  useEffect(() => () => window.clearInterval(timer.current), []);
-
-  function scan(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const value = (subnet.trim() || defaultSubnet);
-    // ponytail: /24 only; add CIDR math if larger ranges are needed
-    const match = value.match(/^(\d{1,3}\.\d{1,3}\.\d{1,3})\.0\/24$/);
-    if (!match || !IPV4.test(`${match[1]}.0`)) return setError("Use a /24 subnet, e.g. 192.168.1.0/24.");
-    const prefix = match[1];
-    setError(null);
-    setFound([]);
-
-    const hosts = new Map<number, Found>();
-    hosts.set(1, { ip: `${prefix}.1`, mac: mac(prefix + "gw", "00:1B:54"), hostname: "gateway.corp.local", vendor: "Cisco Systems", method: "ARP" });
-    machines
-      .filter(m => m.ipAddress.startsWith(prefix + ".") && m.status.toLowerCase() !== "offline")
-      .forEach(m => hosts.set(Number(m.ipAddress.split(".")[3]), {
-        ip: m.ipAddress, mac: mac(m.hostname, "D4:BE:D9"), hostname: m.hostname, vendor: "Dell Inc.", method: "ARP",
-      }));
-    const extras = [["printer", "3C:D9:2B", "Hewlett Packard", "Broadcast"], ["", "", "Unknown", "ARP"], ["ap-floor2", "F0:9F:C2", "Ubiquiti", "Broadcast"]];
-    extras.forEach(([name, oui, vendor, method], index) => {
-      const octet = 2 + (hash(prefix + index) % 250);
-      if (!hosts.has(octet)) hosts.set(octet, {
-        ip: `${prefix}.${octet}`, mac: mac(prefix + index, oui), hostname: name ? `${name}.corp.local` : "—", vendor, method,
-      });
+function simulatedHosts(prefix: string, machines: Machine[]): Found[] {
+  const hosts = new Map<number, Found>();
+  hosts.set(1, { ip: `${prefix}.1`, mac: mac(prefix + "gw", "00:1B:54"), hostname: "gateway.corp.local", vendor: "Cisco Systems", method: "ARP" });
+  machines
+    .filter(m => m.ipAddress.startsWith(prefix + ".") && m.status.toLowerCase() !== "offline")
+    .forEach(m => hosts.set(Number(m.ipAddress.split(".")[3]), {
+      ip: m.ipAddress, mac: mac(m.hostname, "D4:BE:D9"), hostname: m.hostname, vendor: "Dell Inc.", method: "ARP",
+    }));
+  const extras = [["printer", "3C:D9:2B", "Hewlett Packard", "Broadcast"], ["", "", "Unknown", "ARP"], ["ap-floor2", "F0:9F:C2", "Ubiquiti", "Broadcast"]];
+  extras.forEach(([name, oui, vendor, method], index) => {
+    const octet = 2 + (hash(prefix + index) % 250);
+    if (!hosts.has(octet)) hosts.set(octet, {
+      ip: `${prefix}.${octet}`, mac: mac(prefix + index, oui), hostname: name ? `${name}.corp.local` : "—", vendor, method,
     });
+  });
+  return [...hosts.entries()].sort(([a], [b]) => a - b).map(([, host]) => host);
+}
 
-    let next = 1;
-    window.clearInterval(timer.current);
-    setProgress(0);
-    timer.current = window.setInterval(() => {
-      const batch: Found[] = [];
-      for (const limit = Math.min(255, next + 12); next < limit; next++) {
-        const host = hosts.get(next);
-        if (host) batch.push(host);
-      }
-      if (batch.length) setFound(current => [...current, ...batch]);
-      setProgress(Math.round((next - 1) / 254 * 100));
-      if (next >= 255) {
-        window.clearInterval(timer.current);
-        setProgress(null);
-      }
-    }, 60);
+function SubnetScanner({ machines }: { machines: Machine[] }) {
+  const [machineId, setMachineId] = useState("");
+  const [found, setFound] = useState<Found[]>([]);
+  const [scanning, setScanning] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
+
+  const source = machines.find(m => String(m.id) === machineId) ?? machines[0];
+  const prefix = source?.ipAddress.split(".").slice(0, 3).join(".");
+
+  async function scan(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!source || !prefix || !IPV4.test(`${prefix}.0`)) return setNote("Select a machine with a valid IPv4 address.");
+    setFound([]);
+    setNote(null);
+    setScanning(`Scanning ${prefix}.0/24 from ${source.hostname}…`);
+
+    const output = await runOnAgent(source.id, subnetScript(prefix));
+    if (output === null) {
+      await new Promise(resolve => window.setTimeout(resolve, 1500));
+      const hosts = simulatedHosts(prefix, machines);
+      setFound(hosts);
+      setNote(`Agent on ${source.hostname} is offline · simulated result, ${hosts.length} hosts.`);
+    } else {
+      const hosts = output.split(/\r?\n/).filter(line => line.includes("|")).map(line => {
+        const [ip, macAddress, name, state] = line.split("|");
+        const known = machines.find(m => m.ipAddress === ip);
+        return {
+          ip,
+          mac: macAddress.replaceAll("-", ":"),
+          hostname: name || known?.hostname || "—",
+          vendor: known ? `Registered #${known.id}` : "—",
+          method: state === "Self" ? "Local interface" : `ARP · ${state}`,
+        };
+      });
+      setFound(hosts);
+      setNote(hosts.length ? `${hosts.length} hosts found from ${source.hostname}.` : output.trim() || "No hosts responded.");
+    }
+    setScanning(null);
   }
 
   return (
     <section className="rs-panel dg-wide">
       <h2>Subnet discovery (ARP / broadcast)</h2>
       <form className="dg-form" onSubmit={scan}>
-        <input value={subnet} onChange={event => setSubnet(event.target.value)} placeholder={defaultSubnet} aria-label="Subnet" disabled={progress !== null} />
-        <button type="submit" disabled={progress !== null}>{progress === null ? "Scan subnet" : `Scanning… ${progress}%`}</button>
+        <select className="dg-select" value={source ? String(source.id) : ""} onChange={event => setMachineId(event.target.value)} aria-label="Scan from machine" disabled={scanning !== null}>
+          {machines.length === 0 && <option value="">No machines</option>}
+          {machines.map(m => <option key={m.id} value={m.id}>{m.hostname} · {m.ipAddress}</option>)}
+        </select>
+        <button type="submit" disabled={scanning !== null || !source}>{scanning === null ? `Scan ${prefix ?? "—"}.0/24` : "Scanning…"}</button>
       </form>
-      {progress !== null && <progress className="dg-progress" max={100} value={progress} />}
-      {error && <p className="rs-error dg-pad" role="alert">{error}</p>}
+      {scanning && <p className="rs-note">{scanning}</p>}
       <table className="dg-table">
         <thead><tr><th>IP address</th><th>MAC address</th><th>Hostname</th><th>Vendor</th><th>Discovered via</th></tr></thead>
         <tbody>
           {found.map(host => (
-            <tr key={host.ip}><td>{host.ip}</td><td className="dg-mono">{host.mac}</td><td>{host.hostname}</td><td>{host.vendor}</td><td className="muted">{host.method}</td></tr>
+            <tr key={host.ip + host.mac}><td>{host.ip}</td><td className="dg-mono">{host.mac}</td><td>{host.hostname}</td><td>{host.vendor}</td><td className="muted">{host.method}</td></tr>
           ))}
         </tbody>
       </table>
-      {found.length === 0 && progress === null && <p className="rs-note">No scan run yet.</p>}
-      {found.length > 0 && progress === null && <p className="rs-note">{found.length} hosts responded.</p>}
+      {!scanning && <p className="rs-note">{note ?? "Pick the machine to scan from; its agent sweeps its own /24 subnet."}</p>}
     </section>
   );
 }

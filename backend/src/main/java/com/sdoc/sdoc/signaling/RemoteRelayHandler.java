@@ -33,7 +33,7 @@ public class RemoteRelayHandler extends AbstractWebSocketHandler {
     public static final String AGENT_PATH = "/api/v1/internal/agent/*";
     public static final String VIEWER_PATH = "/api/v1/remote/*";
 
-    private static final Set<String> SERVICE_TYPES = Set.of("exec", "restart-agent", "cad", "desktop-start");
+    private static final Set<String> SERVICE_TYPES = Set.of("exec", "restart-agent", "cad", "desktop-start", "file-start");
     private static final Set<String> DESKTOP_TYPES = Set.of("input", "desktop-stop");
     private static final String ROLE = "role", MACHINE = "machine", USER = "user";
     private static final int MAX_COMMAND = 2000;
@@ -111,6 +111,7 @@ public class RemoteRelayHandler extends AbstractWebSocketHandler {
 
         if (message instanceof BinaryMessage) {
             if ("desktop".equals(role)) sendAll(channel.viewers, message);
+            else if ("viewer".equals(role)) send(channel.service, message); // file upload chunks
             return;
         }
         if (!(message instanceof TextMessage text)) return;
@@ -132,7 +133,8 @@ public class RemoteRelayHandler extends AbstractWebSocketHandler {
             case "viewer" -> {
                 if (SERVICE_TYPES.contains(type)) {
                     if (type.equals("exec") && node.path("command").asString("").length() > MAX_COMMAND) return;
-                    log.info("Admin {} -> machine {}: {} {}", session.getAttributes().get(USER), machineId, type, node.path("command").asString(""));
+                    log.info("Admin {} -> machine {}: {} {}{}", session.getAttributes().get(USER), machineId, type,
+                            node.path("command").asString(""), node.path("path").asString(""));
                     send(channel.service, text);
                 } else if (DESKTOP_TYPES.contains(type)) {
                     send(channel.desktop, text);

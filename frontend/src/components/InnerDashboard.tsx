@@ -17,20 +17,19 @@ function Meter({ percent }: { percent: number }) {
     );
 }
 
-function SessionLink({ machine, compact = false }: { machine: Machine; compact?: boolean }) {
+function SessionLink({ machine }: { machine: Machine }) {
     const state = getMachineState(machine);
     if (state === "offline") return null;
     const label = state === "insession" ? "Resume" : "Connect";
     return (
-        <Link className={`session-link ${compact ? "is-compact" : ""}`} to={`/session/${machine.id}`} title={`${label}: remote session to ${machine.hostname}`}>
+        <Link className="session-link is-compact" to={`/session/${machine.id}`} title={`${label}: remote session to ${machine.hostname}`}>
             <MonitorPlay size={14} aria-hidden="true" />
-            <span className={compact ? "visually-hidden" : ""}>{label}</span>
+            <span className="visually-hidden">{label}</span>
         </Link>
     );
 }
 
 function InnerDashboard() {
-    const [view, setView] = useState<"table" | "cards">("table");
     const [search, setSearch] = useState("");
     const [department, setDepartment] = useState("");
     const [state, setState] = useState<MachineState | "">("");
@@ -170,64 +169,11 @@ function InnerDashboard() {
                             <option value="">All departments</option>
                             {DEPARTMENTS.map(name => <option key={name} value={name}>{name}</option>)}
                         </select>
-                        <div className="view-toggle" role="group" aria-label="View">
-                            {(["table", "cards"] as const).map(key => (
-                                <button key={key} type="button" aria-pressed={view === key} onClick={() => setView(key)}>
-                                    {key === "table" ? "Table" : "Cards"}
-                                </button>
-                            ))}
-                        </div>
                     </div>
                 </div>
 
                 {error && <p className="hosts-error" role="alert">{error}. Showing last known data.</p>}
 
-                {view === "cards" && !loading && (
-                    <div className="host-cards">
-                        {visibleMachines.map(machine => {
-                            const machineState = getMachineState(machine);
-                            const metrics = machine.metrics;
-                            const ramPercent = metrics ? metrics.ramUsed / metrics.ramTotal * 100 : 0;
-                            return (
-                                <article key={machine.id} className={`host-card is-${machineState}`}>
-                                    <header>
-                                        <div className="host-cell">
-                                            <strong>{machine.hostname}</strong>
-                                            <span>#{machine.id} · {machine.type} · {machine.department}</span>
-                                        </div>
-                                        <span className={`status is-${machineState}`}>{MACHINE_STATE_LABEL[machineState]}</span>
-                                    </header>
-                                    <dl>
-                                        <div><dt>IP</dt><dd>{machine.ipAddress}</dd></div>
-                                        <div><dt>User</dt><dd>{machine.ownerFullName ?? "—"}</dd></div>
-                                    </dl>
-                                    <div className="host-card-metrics">
-                                        <div className="metric-cell">
-                                            <span className="stat-label">CPU</span>
-                                            {metrics ? <><Meter percent={metrics.cpuUsage} /><span className={loadTone(metrics.cpuUsage)}>{metrics.cpuUsage.toFixed(0)}%</span></> : <span className="muted">—</span>}
-                                        </div>
-                                        <div className="metric-cell">
-                                            <span className="stat-label">Memory</span>
-                                            {metrics ? <><Meter percent={ramPercent} /><span className={loadTone(ramPercent)}>{ramPercent.toFixed(0)}%</span></> : <span className="muted">—</span>}
-                                        </div>
-                                        <div className="metric-cell">
-                                            <span className="stat-label">Latency</span>
-                                            <span>{metrics?.latencyMs == null ? "—" : `${metrics.latencyMs.toFixed(0)} ms`}</span>
-                                        </div>
-                                    </div>
-                                    <footer>
-                                        <span className="muted">
-                                            {metrics ? `Reported ${new Date(metrics.reportedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : "No telemetry"}
-                                        </span>
-                                        <SessionLink machine={machine} />
-                                    </footer>
-                                </article>
-                            );
-                        })}
-                    </div>
-                )}
-
-                {(view === "table" || loading) && (
                 <table className="host-table">
                     <thead>
                         <tr>
@@ -274,13 +220,12 @@ function InnerDashboard() {
                                         <td className="num muted" data-label="Reported">
                                             {metrics ? new Date(metrics.reportedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—"}
                                         </td>
-                                        <td className="session-cell"><SessionLink machine={machine} compact /></td>
+                                        <td className="session-cell"><SessionLink machine={machine} /></td>
                                     </tr>
                                 );
                             })}
                     </tbody>
                 </table>
-                )}
 
                 {!loading && visibleMachines.length === 0 && (
                     <p className="hosts-empty">
