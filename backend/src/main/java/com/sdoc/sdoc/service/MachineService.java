@@ -49,7 +49,7 @@ public class MachineService {
     private MachineDto convertToDto(Machine m) {
         MachineMetricsDto latest = metrics.getIfPresent(m.getId());
         return new MachineDto(m.getId(), m.getType(), m.getDepartment(), liveStatus(m.getStatus(), latest),
-                            m.getHostname(), m.getIpAddress(), latest, m.getOwner().getId(), m.getOwner().getFullName(), m.isRemoteControl());
+                            m.getHostname(), m.getIpAddress(), latest, m.getOwner().getId(), m.getOwner().getFullName(), m.isRemoteControl(), relay.agentAllows(m.getId()));
     }
 
     @Transactional(readOnly = true)

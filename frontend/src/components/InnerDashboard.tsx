@@ -193,9 +193,17 @@ function RowMenu({ machine, onChange }: { machine: Machine; onChange: (machine: 
                     <button type="button" role="menuitem" onClick={() => { setOpen(false); setEditing(true); }}>
                         Edit machine
                     </button>
-                    <button type="button" role="menuitem" className={machine.remoteControl ? "" : "is-danger"} onClick={choose}>
-                        {machine.remoteControl ? "Disable remote control" : "Enable remote control"}
-                    </button>
+                    {machine.remoteControl || machine.agentRemoteControl ? (
+                        <button type="button" role="menuitem" className={machine.remoteControl ? "" : "is-danger"} onClick={choose}>
+                            {machine.remoteControl ? "Disable remote control" : "Enable remote control"}
+                        </button>
+                    ) : (
+                        <span className="row-menu-note">
+                            {machine.agentRemoteControl === false
+                                ? "Remote control is blocked on this computer by its agent settings"
+                                : "Remote control can be enabled once the agent is online"}
+                        </span>
+                    )}
                 </div>
             )}
             {error && !confirming && <span className="row-menu-error" role="alert">{error}</span>}

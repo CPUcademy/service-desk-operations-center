@@ -198,6 +198,11 @@ public class RemoteRelayHandler extends AbstractWebSocketHandler {
         broadcastStatus(channel);
     }
 
+    public Boolean agentAllows(long machineId) {
+        Channel channel = channels.get(machineId);
+        return channel == null || channel.service == null ? null : channel.agentAllows;
+    }
+
     private boolean allowed(long machineId, Channel channel) {
         Boolean cached = channel.remoteControl;
         if (cached != null) return cached;

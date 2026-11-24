@@ -9,6 +9,7 @@ export interface Machine {
     ownerId: number;
     ownerFullName: string;
     remoteControl: boolean;
+    agentRemoteControl: boolean | null;
 }
 
 export interface MachineMetrics {

@@ -21,17 +21,22 @@ $allow = Read-Host "Allow remote control (commands, files, screen) on this compu
 $existing = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
 if ($existing) {
     Write-Host "Removing the existing $ServiceName service..."
-    if ($existing.Status -ne "Stopped") { Stop-Service -Name $ServiceName -Force }
+    if ($existing.Status -ne "Stopped") { Stop-Service -Name $ServiceName -Force -NoWait -ErrorAction SilentlyContinue }
+}
+Get-Process -Name SDOC -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+if ($existing) {
     sc.exe delete $ServiceName | Out-Null
     Start-Sleep -Seconds 2
 }
 
 if ((Resolve-Path $PSScriptRoot).Path -ne $InstallDir) {
-    Write-Host "Copying files to $InstallDir ..."
-    New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
-    Copy-Item -Path (Join-Path $PSScriptRoot "*") -Destination $InstallDir -Recurse -Force
+    Write-Host "Copying files to $InstallDir (antivirus scanning can make this take a minute) ..."
+    robocopy $PSScriptRoot $InstallDir /E /R:3 /W:2 /NFL /NDL /NJH /NJS /NP | Out-Null
+    if ($LASTEXITCODE -ge 8) { throw "Copying files failed (robocopy exit code $LASTEXITCODE). Close anything using $InstallDir and run the installer again." }
+    Write-Host "Files copied."
 }
 Get-ChildItem -Path $InstallDir -Recurse -File | Unblock-File
+Write-Host "Configuring the service..."
 
 $settingsPath = Join-Path $InstallDir "appsettings.json"
 $settings = Get-Content $settingsPath -Raw | ConvertFrom-Json
@@ -58,6 +63,7 @@ finally {
     Remove-Variable plainKey -ErrorAction SilentlyContinue
 }
 
+Write-Host "Starting the service..."
 Start-Service -Name $ServiceName
 Get-Service -Name $ServiceName | Format-Table Name, DisplayName, Status, StartType -AutoSize
 Write-Host "Done. Machine $machineId will appear online on the Dashboard within a few seconds."

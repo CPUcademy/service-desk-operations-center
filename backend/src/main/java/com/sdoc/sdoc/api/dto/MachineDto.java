@@ -10,5 +10,6 @@ public record MachineDto(
     MachineMetricsDto metrics,
     Long ownerId,
     String ownerFullName,
-    boolean remoteControl
+    boolean remoteControl,
+    Boolean agentRemoteControl
 ) {}
