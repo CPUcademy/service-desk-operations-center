@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from "react"
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { apiFetch } from "../api";
-import type { Machine } from "../types/Machine";
+import { canControl, type Machine } from "../types/Machine";
 import { PRIORITIES, priorityLabel, type Ticket } from "../types/Ticket";
 import "./Tickets.css";
 
@@ -244,6 +244,23 @@ function Tickets() {
     void loadTickets();
   }, [loadTickets]);
 
+  const [controllable, setControllable] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    let active = true;
+    const load = () => apiFetch("/api/v1/machines")
+      .then(response => (response.ok ? response.json() : []))
+      .then((data: Machine[]) => active && setControllable(new Set(data.filter(canControl).map(machine => machine.id))))
+      .catch(() => undefined);
+    void load();
+    const interval = window.setInterval(load, 5000);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
+  }, [isAdmin]);
+
   async function markFixed(id: number) {
     setClosing(id);
     try {
@@ -326,7 +343,7 @@ function Tickets() {
                     {ticket.isFixed ? "Fixed" : "Open"}
                   </span>
 
-                  {isAdmin && !ticket.isFixed && (
+                  {isAdmin && !ticket.isFixed && controllable.has(ticket.machineId) && (
                     <Link className="ticket-fix-button ticket-attend" to={`/session/${ticket.machineId}`}>
                       Attend
                     </Link>

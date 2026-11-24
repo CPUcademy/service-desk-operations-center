@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { MonitorPlay, MoreHorizontal, Search } from "lucide-react";
-import { DEPARTMENTS, MACHINE_TYPES, getMachineState, MACHINE_STATE_LABEL, type Machine, type MachineState } from "../types/Machine";
+import { DEPARTMENTS, MACHINE_TYPES, canControl, getMachineState, MACHINE_STATE_LABEL, type Machine, type MachineState } from "../types/Machine";
 import { apiFetch } from "../api";
 import "./InnerDashboard.css";
 
@@ -19,7 +19,7 @@ function Meter({ percent }: { percent: number }) {
 
 function SessionLink({ machine }: { machine: Machine }) {
     const state = getMachineState(machine);
-    if (state === "offline") return null;
+    if (!canControl(machine)) return null;
     const label = state === "insession" ? "Resume" : "Connect";
     return (
         <Link className="session-link is-compact" to={`/session/${machine.id}`} title={`${label}: remote session to ${machine.hostname}`}>

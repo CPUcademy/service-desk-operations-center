@@ -33,6 +33,10 @@ export const MACHINE_STATE_LABEL: Record<MachineState, string> = {
     offline: "Offline",
 };
 
+export function canControl(machine: Machine) {
+    return getMachineState(machine) !== "offline" && machine.remoteControl && machine.agentRemoteControl === true;
+}
+
 export function getMachineState(machine: Machine): MachineState {
     const status = machine.status.toLowerCase();
     if (status === "maintenance") return "maintenance";
