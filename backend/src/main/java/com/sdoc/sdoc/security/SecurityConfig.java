@@ -8,6 +8,7 @@ import com.sdoc.sdoc.service.tokens.TokenRevocationService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.Customizer;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -37,8 +38,10 @@ public class SecurityConfig {
     // CSRF is covered by SameSite=Strict auth cookies plus the CORS origin allowlist
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http, JwtService jwtService, TokenRevocationService tokenRevocationService,
-                                           AuthService authService, RateLimitService rateLimitService, CorsConfigurationSource corsConfigurationSource) {
+                                           AuthService authService, RateLimitService rateLimitService, CorsConfigurationSource corsConfigurationSource,
+                                           @Value("${auth.cookie.secure}") boolean httpsOnly) {
         JwtFilter jwtFilter = new JwtFilter(jwtService, tokenRevocationService, authService);
+        if (httpsOnly) http.redirectToHttps(Customizer.withDefaults());
         http.cors(cors -> cors.configurationSource(corsConfigurationSource))
             .csrf(AbstractHttpConfigurer::disable).sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .exceptionHandling(e -> e.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))

@@ -54,6 +54,9 @@ public class AuthService {
     @Value("${auth.cookie.secure}")
     private boolean secureCookies;
 
+    @Value("${auth.cookie.same-site}")
+    private String sameSite;
+
     // Compared against when the email is unknown, so response time doesn't reveal which emails exist.
     private String dummyHash;
     @PostConstruct
@@ -171,7 +174,7 @@ public class AuthService {
 
     private void addCookie(HttpServletResponse response, String name, String value, String path, Duration maxAge) {
         ResponseCookie cookie = ResponseCookie.from(name, value)
-                .httpOnly(true).secure(secureCookies).sameSite("Strict").path(path).maxAge(maxAge).build();
+                .httpOnly(true).secure(secureCookies).sameSite(sameSite).path(path).maxAge(maxAge).build();
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }
 
