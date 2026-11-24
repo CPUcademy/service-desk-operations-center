@@ -35,7 +35,7 @@ import org.springframework.http.HttpMethod;
 @EnableScheduling
 @EnableMethodSecurity
 public class SecurityConfig {
-    // CSRF is covered by SameSite=Strict auth cookies plus the CORS origin allowlist
+    // CSRF is covered by the CORS origin allowlist plus JSON-only request bodies (cookies are SameSite=None for the cross-site frontend)
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http, JwtService jwtService, TokenRevocationService tokenRevocationService,
                                            AuthService authService, RateLimitService rateLimitService, CorsConfigurationSource corsConfigurationSource,
