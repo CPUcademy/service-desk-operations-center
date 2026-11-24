@@ -60,6 +60,7 @@ public class SecurityConfig {
                     .requestMatchers(JwtFilter.PUBLIC_PREFIX + "**").permitAll()
                     .requestMatchers(InternalMachineController.PREFIX + "**").permitAll()
                     .requestMatchers(AgentController.PREFIX + "/**").permitAll()
+                    .requestMatchers("/error").permitAll()
                     .anyRequest().authenticated()
             ).addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(new RateLimitFilter(rateLimitService), JwtFilter.class);

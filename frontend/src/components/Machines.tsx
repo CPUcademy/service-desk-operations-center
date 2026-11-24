@@ -19,19 +19,19 @@ interface Owner {
 
 function WorkerKey() {
   const [key, setKey] = useState<string | null>(null);
+  const [problem, setProblem] = useState<string | null>(null);
   const [shown, setShown] = useState(false);
 
   function reveal() {
     setShown(true);
     if (key !== null) return;
+    setProblem(null);
     apiFetch("/api/v1/worker/key")
       .then(async response => {
         if (response.ok) return setKey((await response.json()).key);
-        setKey(response.status === 404 ? "not available: deploy the latest backend"
-          : response.status === 401 || response.status === 403 ? "admins only: sign in again"
-          : `server error ${response.status}`);
+        setProblem(`couldn't load the key (HTTP ${response.status}), hover again to retry`);
       })
-      .catch(() => setKey("server unreachable"));
+      .catch(() => setProblem("server unreachable, hover again to retry"));
   }
 
   return (
@@ -44,7 +44,7 @@ function WorkerKey() {
       onFocus={reveal}
       onBlur={() => setShown(false)}
     >
-      {shown ? key ?? "loading…" : "•••••••••••• hover to reveal"}
+      {shown ? key ?? problem ?? "loading…" : "•••••••••••• hover to reveal"}
     </code>
   );
 }
@@ -69,6 +69,7 @@ function CopyCommand({ command }: { command: string }) {
 
 function Machines() {
   const [form, setForm] = useState(EMPTY);
+  const [os, setOs] = useState<"windows" | "linux">("windows");
   const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
   const [saving, setSaving] = useState(false);
   const [owners, setOwners] = useState<Owner[]>([]);
@@ -177,46 +178,48 @@ function Machines() {
       </form>
 
       <section className="ticket-form install-guide" aria-labelledby="install-title">
-        <h2 id="install-title">Install the worker on a Windows machine</h2>
+        <div className="install-head">
+          <h2 id="install-title">Install the worker</h2>
+          <div className="os-toggle" role="group" aria-label="Operating system">
+            {(["windows", "linux"] as const).map(value => (
+              <button key={value} type="button" aria-pressed={os === value} onClick={() => setOs(value)}>
+                {value === "windows" ? "Windows" : "Linux"}
+              </button>
+            ))}
+          </div>
+        </div>
         <ol>
           <li>Add the machine in the form above and note its ID (the #number, also shown on the Dashboard).</li>
+          {os === "windows" ? (
+            <li>
+              On that machine, open PowerShell as Administrator. Antivirus software often flags remote support tools,
+              so first allow the worker's folders. With Microsoft Defender run:
+              <CopyCommand command={DEFENDER_COMMAND} />
+              With other antivirus software, add the same two folders as exclusions in its settings.
+            </li>
+          ) : (
+            <li>On that server, open a terminal as a user with sudo rights. It needs <code>curl</code>, systemd and OpenSSL.</li>
+          )}
           <li>
-            On that machine, open PowerShell as Administrator. Antivirus software often flags remote support tools,
-            so first allow the worker's folders. With Microsoft Defender run:
-            <CopyCommand command={DEFENDER_COMMAND} />
-            With other antivirus software, add the same two folders as exclusions in its settings.
+            {os === "windows" ? "In the same PowerShell window run:" : "Run:"}
+            <CopyCommand command={os === "windows" ? INSTALL_COMMAND : LINUX_INSTALL_COMMAND} />
           </li>
           <li>
-            In the same PowerShell window run:
-            <CopyCommand command={INSTALL_COMMAND} />
-          </li>
-          <li>
-            Answer the three prompts: the machine ID, the worker API key (<WorkerKey />), and whether to allow remote control on that computer.
-          </li>
-        </ol>
-        <p className="install-note">
-          Running the same command again updates the worker. Without PowerShell internet access, <a href={`${API_BASE}/api/v1/worker/download`}>download the worker package</a>,
-          extract it and run <code>install-service.ps1</code> as Administrator.
-        </p>
-      </section>
-
-      <section className="ticket-form install-guide" aria-labelledby="install-linux-title">
-        <h2 id="install-linux-title">Install the worker on a Linux server</h2>
-        <ol>
-          <li>Add the machine in the form above and note its ID.</li>
-          <li>
-            On the server, as a user with sudo rights (needs <code>curl</code> and systemd), run:
-            <CopyCommand command={LINUX_INSTALL_COMMAND} />
-          </li>
-          <li>
-            Answer the three prompts: the machine ID, the worker API key (<WorkerKey />), and whether to allow remote control on that server.
+            Answer the three prompts: the machine ID, the worker API key (<WorkerKey />), and whether to allow remote control on that machine.
           </li>
         </ol>
-        <p className="install-note">
-          Linux servers have no desktop, so remote control there means the shell and file transfer. Running the same command again updates the worker.
-          To install by hand, <a href={`${API_BASE}/api/v1/worker/download?os=linux`}>download the Linux package</a>, extract it and run <code>sudo ./install-worker.sh</code>.
-          Logs: <code>journalctl -u sdoc-worker -f</code>.
-        </p>
+        {os === "windows" ? (
+          <p className="install-note">
+            Running the same command again updates the worker. Without PowerShell internet access, <a href={`${API_BASE}/api/v1/worker/download`}>download the worker package</a>,
+            extract it and run <code>install-service.ps1</code> as Administrator.
+          </p>
+        ) : (
+          <p className="install-note">
+            Linux servers have no desktop, so remote control there means the shell and file transfer. Running the same command again updates the worker.
+            To install by hand, <a href={`${API_BASE}/api/v1/worker/download?os=linux`}>download the Linux package</a>, extract it and run <code>sudo ./install-worker.sh</code>.
+            Logs: <code>journalctl -u sdoc-worker -f</code>.
+          </p>
+        )}
       </section>
     </div>
   );

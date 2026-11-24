@@ -623,3 +623,42 @@
   color: var(--text);
   font-size: 12px;
 }
+
+.install-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.os-toggle {
+  display: flex;
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+}
+
+.os-toggle button {
+  height: 28px;
+  padding: 0 14px;
+  border: none;
+  background: var(--surface);
+  color: var(--text-2);
+  font: 600 12px var(--sans);
+  cursor: pointer;
+}
+
+.os-toggle button + button {
+  border-left: 1px solid var(--border-strong);
+}
+
+.os-toggle button[aria-pressed="true"] {
+  background: var(--navy);
+  color: #fff;
+}
+
+.os-toggle button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
