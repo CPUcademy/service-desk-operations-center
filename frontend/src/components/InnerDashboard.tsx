@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
-import { MonitorPlay, Search } from "lucide-react";
+import { MonitorPlay, MoreHorizontal, Search } from "lucide-react";
 import { DEPARTMENTS, getMachineState, MACHINE_STATE_LABEL, type Machine, type MachineState } from "../types/Machine";
 import { apiFetch } from "../api";
 import "./InnerDashboard.css";
@@ -26,6 +26,92 @@ function SessionLink({ machine }: { machine: Machine }) {
             <MonitorPlay size={14} aria-hidden="true" />
             <span className="visually-hidden">{label}</span>
         </Link>
+    );
+}
+
+async function setRemoteControl(machine: Machine, enabled: boolean, confirmHostname = ""): Promise<Machine> {
+    const response = await apiFetch(`/api/v1/machines/${machine.id}/remote-control`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled, confirmHostname }),
+    });
+    const body = await response.json().catch(() => null);
+    if (!response.ok) throw new Error(body?.message ?? "Failed to update remote control.");
+    return body;
+}
+
+// Row menu: disabling is one click; enabling needs the hostname typed back (the server checks it too)
+function RowMenu({ machine, onChange }: { machine: Machine; onChange: (machine: Machine) => void }) {
+    const [open, setOpen] = useState(false);
+    const [typed, setTyped] = useState("");
+    const [busy, setBusy] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [confirming, setConfirming] = useState(false);
+    const dialog = useRef<HTMLDialogElement>(null);
+    const matches = typed.trim().toLowerCase() === machine.hostname.toLowerCase();
+
+    async function apply(enabled: boolean) {
+        setBusy(true);
+        setError(null);
+        try {
+            onChange(await setRemoteControl(machine, enabled, typed.trim()));
+            dialog.current?.close();
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Failed to update remote control.");
+        } finally {
+            setBusy(false);
+        }
+    }
+
+    function choose() {
+        setOpen(false);
+        if (machine.remoteControl) return void apply(false);
+        setTyped("");
+        setError(null);
+        setConfirming(true);
+        dialog.current?.showModal();
+    }
+
+    function submit(event: FormEvent<HTMLFormElement>) {
+        event.preventDefault();
+        if (matches) void apply(true);
+    }
+
+    return (
+        <div className="row-menu" onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false); }}>
+            <button
+                type="button"
+                className="row-menu-button"
+                aria-label={`Actions for ${machine.hostname}`}
+                aria-haspopup="menu"
+                aria-expanded={open}
+                onClick={() => setOpen(current => !current)}
+                disabled={busy}
+            >
+                <MoreHorizontal size={16} aria-hidden="true" />
+            </button>
+            {open && (
+                <div className="row-menu-list" role="menu">
+                    <button type="button" role="menuitem" className={machine.remoteControl ? "" : "is-danger"} onClick={choose}>
+                        {machine.remoteControl ? "Disable remote control" : "Enable remote control"}
+                    </button>
+                </div>
+            )}
+            {error && !confirming && <span className="row-menu-error" role="alert">{error}</span>}
+
+            <dialog ref={dialog} className="rc-dialog" onClose={() => { setConfirming(false); setTyped(""); }}>
+                <form onSubmit={submit}>
+                    <h2>Enable remote control</h2>
+                    <p>Allows commands, file transfer and screen control on this machine. Type <strong>{machine.hostname}</strong> to confirm.</p>
+                    <input value={typed} onChange={event => setTyped(event.target.value)} aria-label="Hostname" autoComplete="off" spellCheck={false} />
+                    {error && <p className="rc-error" role="alert">{error}</p>}
+                    <div className="rc-dialog-actions">
+                        <button type="button" onClick={() => dialog.current?.close()}>Cancel</button>
+                        <button type="submit" className="is-danger" disabled={busy || !matches}>{busy ? "Enabling…" : "Enable"}</button>
+                    </div>
+                </form>
+            </dialog>
+        </div>
     );
 }
 
@@ -185,7 +271,7 @@ function InnerDashboard() {
                             <th className="num">Memory</th>
                             <th className="num">Latency</th>
                             <th className="num">Reported</th>
-                            <th><span className="visually-hidden">Session</span></th>
+                            <th><span className="visually-hidden">Actions</span></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -220,7 +306,10 @@ function InnerDashboard() {
                                         <td className="num muted" data-label="Reported">
                                             {metrics ? new Date(metrics.reportedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—"}
                                         </td>
-                                        <td className="session-cell"><SessionLink machine={machine} /></td>
+                                        <td className="session-cell">
+                                            <SessionLink machine={machine} />
+                                            <RowMenu machine={machine} onChange={updated => setMachines(current => current.map(m => (m.id === updated.id ? { ...m, remoteControl: updated.remoteControl } : m)))} />
+                                        </td>
                                     </tr>
                                 );
                             })}

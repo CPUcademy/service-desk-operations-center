@@ -566,3 +566,178 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+.session-cell {
+  white-space: nowrap;
+}
+
+.session-cell > * {
+  vertical-align: middle;
+}
+
+.row-menu {
+  position: relative;
+  display: inline-block;
+  margin-left: 4px;
+}
+
+.row-menu-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 26px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: none;
+  color: var(--text-2);
+  cursor: pointer;
+}
+
+.row-menu-button:hover,
+.row-menu-button[aria-expanded="true"] {
+  border-color: var(--border-strong);
+  background: var(--surface);
+  color: var(--navy);
+}
+
+.row-menu-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.row-menu-list {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 10;
+  min-width: 190px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  box-shadow: 0 8px 24px #0316321f;
+}
+
+.row-menu-list button {
+  display: block;
+  width: 100%;
+  padding: 7px 10px;
+  border: none;
+  border-radius: 3px;
+  background: none;
+  color: var(--text);
+  font: 500 13px var(--sans);
+  text-align: left;
+  cursor: pointer;
+}
+
+.row-menu-list button:hover,
+.row-menu-list button:focus-visible {
+  background: var(--subtle);
+  outline: none;
+}
+
+.row-menu-list .is-danger {
+  color: var(--bad);
+}
+
+.row-menu-error {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 10;
+  width: 220px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  background: var(--bad);
+  color: #fff;
+  font-size: 12px;
+  white-space: normal;
+}
+
+.rc-dialog {
+  width: min(420px, calc(100vw - 32px));
+  margin: auto;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--text);
+  font-family: var(--sans);
+  white-space: normal;
+  text-align: left;
+}
+
+.rc-dialog::backdrop {
+  background: #03163266;
+}
+
+.rc-dialog form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px;
+}
+
+.rc-dialog h2 {
+  color: var(--navy);
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.rc-dialog p {
+  color: var(--text-2);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.rc-dialog strong {
+  color: var(--text);
+}
+
+.rc-dialog input {
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  font: 500 13px Consolas, monospace;
+}
+
+.rc-dialog .rc-error {
+  color: var(--bad);
+}
+
+.rc-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.rc-dialog-actions button {
+  height: 32px;
+  padding: 0 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--navy);
+  font: 600 13px var(--sans);
+  cursor: pointer;
+}
+
+.rc-dialog-actions .is-danger {
+  border-color: var(--bad);
+  background: var(--bad);
+  color: #fff;
+}
+
+.rc-dialog-actions button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.rc-dialog input:focus-visible,
+.rc-dialog-actions button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}

@@ -225,11 +225,17 @@ function runOnAgent(machineId: number, command: string): Promise<string | null> 
   });
 }
 
-const subnetScript = (prefix: string) => `
-$prefix = '${prefix}'
-$tasks = 1..254 | ForEach-Object { (New-Object System.Net.NetworkInformation.Ping).SendPingAsync("$prefix.$_", 400) }
+// Scans the subnet the agent is actually on (the registered IP may be stale)
+const SUBNET_SCRIPT = `
+$ProgressPreference = 'SilentlyContinue'
+$config = Get-NetIPConfiguration | Where-Object { $_.IPv4DefaultGateway -and $_.NetAdapter.Status -eq 'Up' } | Select-Object -First 1
+if (-not $config) { 'ERROR|No active network interface with a default gateway.'; return }
+$self = @($config.IPv4Address)[0].IPAddress
+$prefix = ($self -split '\\.')[0..2] -join '.'
+"SUBNET|$prefix|$($config.InterfaceAlias)"
+$tasks = 1..254 | ForEach-Object { (New-Object System.Net.NetworkInformation.Ping).SendPingAsync("$prefix.$_", 500) }
 try { [System.Threading.Tasks.Task]::WaitAll([System.Threading.Tasks.Task[]]$tasks) } catch {}
-$neighbors = Get-NetNeighbor -AddressFamily IPv4 |
+$neighbors = Get-NetNeighbor -AddressFamily IPv4 -InterfaceIndex $config.InterfaceIndex |
   Where-Object { $_.IPAddress -like "$prefix.*" -and $_.State -notin 'Unreachable','Incomplete' -and $_.LinkLayerAddress -notin '','00-00-00-00-00-00','FF-FF-FF-FF-FF-FF' } |
   Group-Object IPAddress | ForEach-Object { $_.Group[0] }
 $lookups = @($neighbors | ForEach-Object { [pscustomobject]@{ ip = $_.IPAddress; task = [System.Net.Dns]::GetHostEntryAsync($_.IPAddress) } })
@@ -237,7 +243,7 @@ if ($lookups.Count) { try { [void][System.Threading.Tasks.Task]::WaitAll([System
 $names = @{}
 foreach ($l in $lookups) { if ($l.task.Status -eq 'RanToCompletion') { $names[$l.ip] = $l.task.Result.HostName } }
 $neighbors | ForEach-Object { "$($_.IPAddress)|$($_.LinkLayerAddress)|$($names[$_.IPAddress])|$($_.State)" }
-Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -like "$prefix.*" } | ForEach-Object { "$($_.IPAddress)|this machine|$env:COMPUTERNAME|Self" }
+"$self|this machine|$env:COMPUTERNAME|Self"
 `;
 
 function simulatedHosts(prefix: string, machines: Machine[]): Found[] {
@@ -272,16 +278,20 @@ function SubnetScanner({ machines }: { machines: Machine[] }) {
     if (!source || !prefix || !IPV4.test(`${prefix}.0`)) return setNote("Select a host with a valid IPv4 address.");
     setFound([]);
     setNote(null);
-    setScanning(`Scanning ${prefix}.0/24 from ${source.hostname}…`);
+    setScanning(`Scanning from ${source.hostname}…`);
 
-    const output = await runOnAgent(source.id, subnetScript(prefix));
+    const output = await runOnAgent(source.id, SUBNET_SCRIPT);
     if (output === null) {
       await new Promise(resolve => window.setTimeout(resolve, 1500));
       const hosts = simulatedHosts(prefix, machines);
       setFound(hosts);
       setNote(`Agent on ${source.hostname} is offline · simulated result, ${hosts.length} hosts.`);
     } else {
-      const hosts = output.split(/\r?\n/).map(line => line.trim().split("|")).filter(parts => parts.length === 4 && IPV4.test(parts[0])).map(parts => {
+      const rows = output.split(/\r?\n/).map(line => line.trim().split("|"));
+      const subnet = rows.find(parts => parts[0] === "SUBNET");
+      const failure = rows.find(parts => parts[0] === "ERROR");
+      const octet = (ip: string) => Number(ip.split(".")[3]);
+      const hosts = rows.filter(parts => parts.length === 4 && IPV4.test(parts[0])).sort((a, b) => octet(a[0]) - octet(b[0])).map(parts => {
         const [ip, macAddress, name, state] = parts;
         const known = machines.find(m => m.ipAddress === ip);
         return {
@@ -293,7 +303,11 @@ function SubnetScanner({ machines }: { machines: Machine[] }) {
         };
       });
       setFound(hosts);
-      setNote(hosts.length ? `${hosts.length} hosts found from ${source.hostname}.` : output.trim() || "No hosts responded.");
+      const where = subnet ? `${subnet[1]}.0/24 via ${subnet[2]}` : "";
+      const stale = subnet && !source.ipAddress.startsWith(subnet[1] + ".") ? ` Registered IP ${source.ipAddress} is not on this subnet; update it on the Machines page.` : "";
+      setNote(failure ? failure[1]
+        : hosts.length ? `${hosts.length} hosts found on ${where} from ${source.hostname}.${stale}`
+        : subnet ? `No hosts responded on ${where}.` : output.trim() || "No hosts responded.");
     }
     setScanning(null);
   }
@@ -303,7 +317,7 @@ function SubnetScanner({ machines }: { machines: Machine[] }) {
       <h2>Subnet discovery (ARP / broadcast)</h2>
       <form className="dg-form" onSubmit={scan}>
         <HostSelect machines={machines} value={machineId} onChange={setMachineId} disabled={scanning !== null} />
-        <button type="submit" disabled={scanning !== null || !source}>{scanning !== null ? "Scanning…" : prefix ? `Scan ${prefix}.0/24` : "Scan subnet"}</button>
+        <button type="submit" disabled={scanning !== null || !source}>{scanning !== null ? "Scanning…" : "Scan subnet"}</button>
       </form>
       {scanning && <p className="rs-note">{scanning}</p>}
       <table className="dg-table">
@@ -314,7 +328,7 @@ function SubnetScanner({ machines }: { machines: Machine[] }) {
           ))}
         </tbody>
       </table>
-      {!scanning && <p className="rs-note">{note ?? "Pick a host; its agent sweeps the host's own /24 subnet. Needs remote control enabled for that machine."}</p>}
+      {!scanning && <p className="rs-note">{note ?? "Pick a host; its agent sweeps the /24 subnet it is connected to. Needs remote control enabled for that machine."}</p>}
     </section>
   );
 }

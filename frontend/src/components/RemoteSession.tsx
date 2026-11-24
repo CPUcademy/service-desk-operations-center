@@ -6,127 +6,13 @@ import { WS_BASE } from "../config";
 import { setInSession, type Machine } from "../types/Machine";
 import "./RemoteSession.css";
 
-type Phase = "connecting" | "live" | "cad" | "restarting";
 type Line = { text: string; kind: "in" | "out" | "err" };
-type Transfer = { name: string; size: number; path: string };
+type Agent = { online: boolean; desktop: boolean; remoteControl: boolean; agentAllows: boolean };
+type FileReply = { type: string; error?: string; path?: string };
 
 const DEFAULT_PATH = "C:\\Users\\Public\\Downloads";
 const FILE_CHUNK = 256 * 1024;
-
-type FileReply = { type: string; error?: string; path?: string };
-
-const OFFLINE = { online: false, desktop: false, remoteControl: false, agentAllows: false };
-const CAD_OPTIONS = ["Lock", "Switch user", "Sign out", "Change a password", "Task Manager"];
-
-const SERVICES: Record<string, string> = {
-  Spooler: "Print Spooler",
-  wuauserv: "Windows Update",
-  Dnscache: "DNS Client",
-  WinRM: "Windows Remote Management (WS-Management)",
-  LanmanWorkstation: "Workstation",
-  SDOCAgent: "SDOC Remote Support Agent",
-};
-
-const PROCESSES = [
-  ["explorer", 2312, 84.2], ["ERPClient", 6120, 312.7], ["chrome", 7744, 455.1], ["OUTLOOK", 5408, 198.3],
-  ["Teams", 8016, 266.9], ["svchost", 1044, 41.6], ["SDOCAgent", 3388, 12.4], ["System", 4, 0.9],
-] as const;
-
-const LEDGER = [
-  ["4010", "Sales revenue – EU", "128,440.00"],
-  ["5020", "Cost of goods sold", "-71,215.40"],
-  ["6110", "Payroll", "-38,900.00"],
-  ["6300", "Office rent", "-6,250.00"],
-  ["6420", "Software licences", "-3,180.75"],
-  ["7100", "Bank interest", "412.18"],
-];
-
-const INVOICES = [
-  ["INV-20931", "Northwind Supplies", "Pending"],
-  ["INV-20930", "Contoso Logistics", "Approved"],
-  ["INV-20927", "Fabrikam Office", "Overdue"],
-  ["INV-20925", "Tailspin Freight", "Approved"],
-];
-
-const HELP = [
-  "Available commands:",
-  "  ipconfig                  Show network configuration",
-  "  get-process               List running processes",
-  "  get-service               List monitored services",
-  "  restart-service <name>    Restart a Windows service",
-  "  hostname | whoami         Show host or signed-in user",
-  "  dir [path]                List a directory",
-  "  clear | cls               Clear the console",
-];
-
-function accountName(fullName: string) {
-  const [first = "user", ...rest] = fullName.toLowerCase().split(/\s+/);
-  return (first[0] + (rest.at(-1) ?? first)).replace(/[^a-z0-9]/g, "");
-}
-
-function runCommand(raw: string, machine: Machine, transfers: Transfer[]): string[] | null {
-  const [name = "", ...args] = raw.trim().split(/\s+/);
-  const user = accountName(machine.ownerFullName ?? "");
-  const prefix = machine.ipAddress.split(".").slice(0, 3).join(".");
-
-  switch (name.toLowerCase()) {
-    case "":
-      return [];
-    case "help":
-      return HELP;
-    case "clear":
-    case "cls":
-      return null;
-    case "hostname":
-      return [machine.hostname];
-    case "whoami":
-      return [`corp\\${user}`];
-    case "ipconfig":
-      return [
-        "Windows IP Configuration", "",
-        "Ethernet adapter Ethernet0:", "",
-        "   Connection-specific DNS Suffix  . : corp.local",
-        `   IPv4 Address. . . . . . . . . . . : ${machine.ipAddress}`,
-        "   Subnet Mask . . . . . . . . . . . : 255.255.255.0",
-        `   Default Gateway . . . . . . . . . : ${prefix}.1`,
-      ];
-    case "get-process":
-      return [
-        "Handles  NPM(K)    PM(K)      WS(K)     CPU(s)     Id ProcessName",
-        "-------  ------    -----      -----     ------     -- -----------",
-        ...PROCESSES.map(([proc, id, cpu]) =>
-          `${String(Math.round(cpu * 7 + 180)).padStart(7)}  ${String(Math.round(cpu / 9 + 8)).padStart(6)}  ${String(Math.round(cpu * 410)).padStart(7)}  ${String(Math.round(cpu * 520)).padStart(9)}  ${(cpu * (0.9 + Math.random() * 0.2)).toFixed(2).padStart(9)}  ${String(id).padStart(5)} ${proc}`),
-      ];
-    case "get-service":
-      return [
-        "Status   Name               DisplayName",
-        "------   ----               -----------",
-        ...Object.entries(SERVICES).map(([svc, display]) => `Running  ${svc.padEnd(18)} ${display}`),
-      ];
-    case "restart-service": {
-      const target = args.find(arg => !arg.startsWith("-"));
-      if (!target) return ["restart-service : Missing an argument for parameter 'Name'."];
-      const svc = Object.keys(SERVICES).find(key => key.toLowerCase() === target.toLowerCase());
-      if (!svc) return [`restart-service : Cannot find any service with service name '${target}'.`];
-      return [
-        `WARNING: Waiting for service '${SERVICES[svc]} (${svc})' to stop...`,
-        `WARNING: Waiting for service '${SERVICES[svc]} (${svc})' to start...`,
-        `Service ${svc} restarted.`,
-      ];
-    }
-    case "dir":
-    case "ls": {
-      const path = args.join(" ") || `C:\\Users\\${user}`;
-      const files = transfers.filter(file => file.path.toLowerCase() === path.toLowerCase());
-      const entries = path.toLowerCase() === `c:\\users\\${user}`
-        ? ["d-r---  Desktop", "d-r---  Documents", "d-r---  Downloads", "d-r---  Pictures"]
-        : files.map(file => `-a----  ${String(file.size).padStart(10)} ${file.name}`);
-      return [`    Directory: ${path}`, "", "Mode    Length     Name", "----    ------     ----", ...entries];
-    }
-    default:
-      return [`${name} : The term '${name}' is not recognized as the name of a cmdlet. Type 'help' for available commands.`];
-  }
-}
+const OFFLINE: Agent = { online: false, desktop: false, remoteControl: false, agentAllows: false };
 
 function RemoteSession() {
   const { id } = useParams();
@@ -135,22 +21,18 @@ function RemoteSession() {
 
   const [machine, setMachine] = useState<Machine | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [phase, setPhase] = useState<Phase>("connecting");
-  const [cursor, setCursor] = useState({ x: 48, y: 40 });
-  const [now, setNow] = useState(() => new Date());
-  const [lines, setLines] = useState<Line[]>([{ text: "Remote PowerShell Direct. Type 'help' for commands.", kind: "out" }]);
+  const [agent, setAgent] = useState<Agent | null>(null);
+  const [frame, setFrame] = useState<string | null>(null);
+  const [lines, setLines] = useState<Line[]>([]);
   const [command, setCommand] = useState("");
   const [history, setHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
-  const [transfers, setTransfers] = useState<Transfer[]>([]);
+  const [running, setRunning] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [path, setPath] = useState(DEFAULT_PATH);
   const [progress, setProgress] = useState<number | null>(null);
   const [transferError, setTransferError] = useState<string | null>(null);
   const [activity, setActivity] = useState<{ at: Date; text: string }[]>([]);
-  const [agent, setAgent] = useState(OFFLINE);
-  const [frame, setFrame] = useState<string | null>(null);
-  const [running, setRunning] = useState(false);
 
   const relay = useRef<WebSocket | null>(null);
   const lastMove = useRef(0);
@@ -169,7 +51,6 @@ function RemoteSession() {
         if (!active) return;
         setMachine(data);
         setInSession(data.id, true);
-        window.setTimeout(() => active && setPhase("live"), 1200);
       })
       .catch(err => active && setError(err instanceof Error ? err.message : "Failed to load machine."));
     return () => {
@@ -207,8 +88,7 @@ function RemoteSession() {
         write(msg.output || (msg.exitCode === 0 ? "" : `Exit code ${msg.exitCode}`), msg.exitCode === 0 ? "out" : "err");
         setRunning(false);
       } else if (msg.type === "notice") {
-        write(`[agent] ${msg.text}`);
-        setActivity(current => [{ at: new Date(), text: msg.text }, ...current]);
+        log(msg.text);
       }
     };
     socket.onclose = () => {
@@ -222,6 +102,9 @@ function RemoteSession() {
       if (frameUrl) URL.revokeObjectURL(frameUrl);
     };
   }, [machineId]);
+
+  useEffect(() => { consoleEnd.current?.scrollIntoView({ block: "nearest" }); }, [lines]);
+  useEffect(() => { if (!running) document.getElementById("rs-command")?.focus({ preventScroll: true }); }, [running]);
 
   const sendRelay = (payload: object) => {
     if (relay.current?.readyState !== WebSocket.OPEN) return false;
@@ -243,70 +126,21 @@ function RemoteSession() {
     sendRelay({ type: "input", kind, key: event.keyCode });
   }
 
-  useEffect(() => {
-    if (phase !== "live") return;
-    const interval = window.setInterval(() => {
-      setCursor({ x: 6 + Math.random() * 86, y: 6 + Math.random() * 78 });
-      setNow(new Date());
-    }, 1600);
-    return () => window.clearInterval(interval);
-  }, [phase]);
-
-  useEffect(() => { consoleEnd.current?.scrollIntoView({ block: "nearest" }); }, [lines]);
-  useEffect(() => { if (!running) document.getElementById("rs-command")?.focus({ preventScroll: true }); }, [running]);
-
-  function sendCtrlAltDel() {
-    if (agent.online) {
-      sendRelay({ type: "cad" });
-      log("Ctrl+Alt+Del requested");
-      return;
-    }
-    setPhase("cad");
-    log("Sent Ctrl+Alt+Del");
-  }
-
-  function chooseCad(option: string | null) {
-    setPhase("live");
-    log(option ? `Secure screen: ${option}` : "Secure screen cancelled");
-  }
-
-  function restartAgent() {
-    if (agent.online) {
-      sendRelay({ type: "restart-agent" });
-      log("Support agent restart requested");
-      return;
-    }
-    setPhase("restarting");
-    log("Support agent restart requested");
-    setLines(current => [...current, { text: "[agent] SDOCAgent stopping… reconnecting", kind: "out" }]);
-    window.setTimeout(() => {
-      setPhase("live");
-      log("Support agent back online");
-      setLines(current => [...current, { text: "[agent] SDOCAgent running", kind: "out" }]);
-    }, 3000);
+  function action(type: string, entry: string) {
+    if (sendRelay({ type })) log(entry);
   }
 
   function handleCommand(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!machine || running) return;
-    const prompt = `PS C:\\Users\\${accountName(machine.ownerFullName ?? "")}> ${command}`;
-    const isClear = /^\s*(clear|cls)\s*$/i.test(command);
-    if (agent.online && command.trim() && !isClear) {
-      setLines(current => [...current, { text: prompt, kind: "in" }]);
+    if (!machine || running || !command.trim()) return;
+    if (/^\s*(clear|cls)\s*$/i.test(command)) {
+      setLines([]);
+    } else {
+      setLines(current => [...current, { text: `PS ${machine.hostname}> ${command}`, kind: "in" }]);
       setRunning(sendRelay({ type: "exec", id: Date.now(), command }));
-      setHistory(current => [...current, command]);
-      log(`PowerShell: ${command.trim()}`);
-      setHistoryIndex(-1);
-      setCommand("");
-      return;
-    }
-    const output = runCommand(command, machine, transfers);
-    if (output === null) setLines([]);
-    else setLines(current => [...current, { text: prompt, kind: "in" }, ...output.map(text => ({ text, kind: "out" as const }))]);
-    if (command.trim()) {
-      setHistory(current => [...current, command]);
       log(`PowerShell: ${command.trim()}`);
     }
+    setHistory(current => [...current, command]);
     setHistoryIndex(-1);
     setCommand("");
   }
@@ -341,7 +175,6 @@ function RemoteSession() {
     }
     fileReply.current = null;
     if (msg.type === "file-done") {
-      setTransfers(list => [...list, { name: file.name, size: file.size, path: target }]);
       log(`Transferred ${file.name} → ${msg.path ?? target}`);
       setFile(null);
       if (fileInput.current) fileInput.current.value = "";
@@ -358,23 +191,7 @@ function RemoteSession() {
     if (!file) return setTransferError("Choose a file.");
     if (!/^[a-z]:\\[^<>:"/|?*]*$/i.test(target)) return setTransferError("Enter an absolute Windows path, e.g. C:\\Users\\Public\\Downloads.");
     setTransferError(null);
-    if (agent.online) {
-      void upload(file, target);
-      return;
-    }
-    let done = 0;
-    setProgress(0);
-    const interval = window.setInterval(() => {
-      done = Math.min(100, done + 8 + Math.random() * 12);
-      setProgress(done);
-      if (done < 100) return;
-      window.clearInterval(interval);
-      setTransfers(list => [...list, { name: file.name, size: file.size, path: target }]);
-      log(`Transferred ${file.name} → ${target}`);
-      setFile(null);
-      if (fileInput.current) fileInput.current.value = "";
-      window.setTimeout(() => setProgress(null), 600);
-    }, 150);
+    void upload(file, target);
   }
 
   if (error) {
@@ -386,46 +203,41 @@ function RemoteSession() {
     );
   }
 
-  const busy = phase !== "live";
-  const controllable = agent.online && agent.remoteControl && agent.agentAllows;
-  const locked = agent.online && !controllable;
-  const lockReason = !agent.remoteControl
-    ? "Remote control is disabled for this machine. An administrator can enable it on the Machines page."
-    : "This machine's agent was installed without remote control permission. Reinstall the agent and allow it to enable control.";
+  const online = agent?.online ?? false;
+  const controllable = online && agent!.remoteControl && agent!.agentAllows;
+  const screenMessage = agent === null ? "Connecting to the agent…"
+    : !online ? "The agent on this machine is offline. A session can't be started."
+    : !agent.remoteControl ? "Remote control is disabled for this machine. An administrator can enable it on the Machines page."
+    : !agent.agentAllows ? "This machine's agent was installed without remote control permission."
+    : agent.desktop ? "Waiting for the desktop stream…"
+    : "Screen session hasn't been started. Use Take control to view and control the desktop.";
 
   return (
     <div className="rs-page">
       <header className="rs-head">
         <div>
           <Link className="rs-back" to="/dashboard"><ArrowLeft size={14} /> Dashboard</Link>
-          <h1>{machine?.hostname ?? "Connecting…"}</h1>
+          <h1>{machine?.hostname ?? "Loading…"}</h1>
           {machine && (
             <p className="rs-sub">
               #{machine.id} · {machine.ipAddress} · {machine.department} · {machine.ownerFullName}
-              <span className={`rs-state is-${agent.online ? "live" : phase}`}>
-                {agent.online ? (agent.desktop ? "Agent connected · controlling desktop" : "Agent connected")
-                  : phase === "live" ? "Simulated · agent offline" : phase === "cad" ? "Secure screen" : phase === "restarting" ? "Agent restarting" : "Connecting"}
+              <span className={`rs-state ${online ? "is-live" : ""}`}>
+                {agent === null ? "Connecting" : !online ? "Agent offline" : agent.desktop ? "Agent connected · controlling desktop" : "Agent connected"}
               </span>
             </p>
           )}
         </div>
         <div className="rs-controls">
-          {controllable && (agent.desktop ? (
-            <button type="button" onClick={() => { sendRelay({ type: "desktop-stop" }); log("Released desktop control"); }}>
-              <MonitorX size={14} /> Release control
-            </button>
+          {controllable && (agent!.desktop ? (
+            <button type="button" onClick={() => action("desktop-stop", "Released desktop control")}><MonitorX size={14} /> Release control</button>
           ) : (
-            <button type="button" onClick={() => { sendRelay({ type: "desktop-start" }); log("Requested desktop control"); }}>
-              <MonitorPlay size={14} /> Take control
-            </button>
+            <button type="button" onClick={() => action("desktop-start", "Requested desktop control")}><MonitorPlay size={14} /> Take control</button>
           ))}
-          <button type="button" onClick={sendCtrlAltDel} disabled={busy || locked}><KeyRound size={14} /> Ctrl+Alt+Del</button>
-          <button type="button" onClick={restartAgent} disabled={busy}><RotateCcw size={14} /> Restart agent</button>
+          {controllable && <button type="button" onClick={() => action("cad", "Ctrl+Alt+Del requested")}><KeyRound size={14} /> Ctrl+Alt+Del</button>}
+          {online && <button type="button" onClick={() => action("restart-agent", "Support agent restart requested")}><RotateCcw size={14} /> Restart agent</button>}
           <button type="button" className="rs-end" onClick={() => navigate(-1)}>End session</button>
         </div>
       </header>
-
-      {locked && <p className="rs-locked" role="status">{lockReason}</p>}
 
       <div className="rs-grid">
         {frame ? (
@@ -448,78 +260,45 @@ function RemoteSession() {
             />
           </section>
         ) : (
-        <section className="rs-screen" aria-label="Remote desktop">
-          {agent.desktop && <div className="rd-overlay">Waiting for desktop stream…</div>}
-          <div className="rd-window rd-ledger">
-            <div className="rd-title">FinERP — General Ledger · FY2026</div>
-            <table>
-              <thead><tr><th>Account</th><th>Description</th><th>Balance (EUR)</th></tr></thead>
-              <tbody>
-                {LEDGER.map(([account, description, balance]) => (
-                  <tr key={account}><td>{account}</td><td>{description}</td><td className={balance.startsWith("-") ? "neg" : ""}>{balance}</td></tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="rd-window rd-invoices">
-            <div className="rd-title">FinERP — Accounts Payable</div>
-            <ul>
-              {INVOICES.map(([number, vendor, state]) => (
-                <li key={number}><span>{number}</span><span>{vendor}</span><em className={`is-${state.toLowerCase()}`}>{state}</em></li>
-              ))}
-            </ul>
-          </div>
-          <div className="rd-taskbar">
-            <div className="rd-apps">
-              <span className="rd-start" /><span /><span className="rd-erp" /><span />
-            </div>
-            <time>{now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}<br />{now.toLocaleDateString()}</time>
-          </div>
-          <svg className="rd-cursor" style={{ left: `${cursor.x}%`, top: `${cursor.y}%` }} width="16" height="22" viewBox="0 0 16 22" aria-hidden="true">
-            <path d="M1 1v17l4.5-4.2L8.6 21l3-1.3-3.1-7H14z" fill="#fff" stroke="#000" strokeWidth="1.2" strokeLinejoin="round" />
-          </svg>
-
-          {phase === "connecting" && <div className="rd-overlay">Establishing remote session…</div>}
-          {phase === "restarting" && <div className="rd-overlay">Remote support agent restarting…</div>}
-          {phase === "cad" && (
-            <div className="rd-overlay rd-cad">
-              {CAD_OPTIONS.map(option => <button key={option} type="button" onClick={() => chooseCad(option)}>{option}</button>)}
-              <button type="button" className="rd-cancel" onClick={() => chooseCad(null)}>Cancel</button>
-            </div>
-          )}
-        </section>
+          <section className="rs-screen" aria-label="Remote desktop">
+            <p>{screenMessage}</p>
+          </section>
         )}
 
-        <section className="rs-panel rs-console" aria-label="Remote PowerShell">
-          <h2>PowerShell Direct · {controllable ? "live" : locked ? "locked" : "simulated"}{running ? " · running…" : ""}</h2>
-          <div className="rs-terminal" onClick={() => document.getElementById("rs-command")?.focus()}>
-            {lines.map((line, index) => <pre key={index} className={line.kind}>{line.text}</pre>)}
-            <form onSubmit={handleCommand}>
-              <label htmlFor="rs-command">PS&gt;</label>
-              <input
-                id="rs-command"
-                value={command}
-                onChange={event => setCommand(event.target.value)}
-                onKeyDown={handleHistory}
-                disabled={busy || running || locked}
-                autoComplete="off"
-                spellCheck={false}
-              />
-            </form>
-            <div ref={consoleEnd} />
-          </div>
-        </section>
+        {controllable && (
+          <section className="rs-panel rs-console" aria-label="Remote PowerShell">
+            <h2>PowerShell Direct{running ? " · running…" : ""}</h2>
+            <div className="rs-terminal" onClick={() => document.getElementById("rs-command")?.focus()}>
+              {lines.map((line, index) => <pre key={index} className={line.kind}>{line.text}</pre>)}
+              <form onSubmit={handleCommand}>
+                <label htmlFor="rs-command">PS&gt;</label>
+                <input
+                  id="rs-command"
+                  value={command}
+                  onChange={event => setCommand(event.target.value)}
+                  onKeyDown={handleHistory}
+                  disabled={running}
+                  autoComplete="off"
+                  spellCheck={false}
+                />
+              </form>
+              <div ref={consoleEnd} />
+            </div>
+          </section>
+        )}
 
-        <div className="rs-side">
-          <form className="rs-panel rs-transfer" onSubmit={handleTransfer}>
-            <h2>File transfer</h2>
-            <input ref={fileInput} type="file" onChange={event => setFile(event.target.files?.[0] ?? null)} disabled={progress !== null} />
-            <label htmlFor="rs-path">Destination</label>
-            <input id="rs-path" value={path} onChange={event => setPath(event.target.value)} disabled={progress !== null} />
-            {progress !== null && <progress max={100} value={progress} />}
-            {transferError && <p className="rs-error" role="alert">{transferError}</p>}
-            <button type="submit" disabled={busy || locked || progress !== null}><Upload size={14} /> Send file</button>
-          </form>
+        <div className={controllable ? "rs-side" : "rs-side rs-wide"}>
+          {controllable && (
+            <form className="rs-panel rs-transfer" onSubmit={handleTransfer}>
+              <h2>File transfer</h2>
+              <input ref={fileInput} type="file" onChange={event => setFile(event.target.files?.[0] ?? null)} disabled={progress !== null} />
+              <label htmlFor="rs-path">Destination</label>
+              <input id="rs-path" value={path} onChange={event => setPath(event.target.value)} disabled={progress !== null} />
+              {progress !== null && <progress max={100} value={progress} />}
+              {transferError && <p className="rs-error" role="alert">{transferError}</p>}
+              <button type="submit" disabled={progress !== null}><Upload size={14} /> Send file</button>
+            </form>
+          )}
 
           <section className="rs-panel rs-activity" aria-label="Session activity">
             <h2>Activity</h2>

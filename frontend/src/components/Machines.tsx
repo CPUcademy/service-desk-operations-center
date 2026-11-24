@@ -1,8 +1,7 @@
 import { useEffect, useState, type SubmitEvent } from "react";
 import { apiFetch } from "../api";
-import { DEPARTMENTS, MACHINE_TYPES, type Machine } from "../types/Machine";
+import { DEPARTMENTS, MACHINE_TYPES } from "../types/Machine";
 import "./Tickets.css";
-import "./Machines.css";
 
 const EMPTY = { hostname: "", ipAddress: "", type: MACHINE_TYPES[0], department: DEPARTMENTS[0], ownerId: "" };
 
@@ -12,87 +11,11 @@ interface Owner {
   email: string;
 }
 
-// Enabling needs the hostname typed back (checked again by the server); disabling is one click
-function RemoteControl({ machine, onChange }: { machine: Machine; onChange: (machine: Machine) => void }) {
-  const [confirming, setConfirming] = useState(false);
-  const [typed, setTyped] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function apply(enabled: boolean) {
-    setBusy(true);
-    setError(null);
-    try {
-      const response = await apiFetch(`/api/v1/machines/${machine.id}/remote-control`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ enabled, confirmHostname: typed.trim() }),
-      });
-      const body = await response.json().catch(() => null);
-      if (!response.ok) throw new Error(body?.message ?? "Failed to update remote control.");
-      onChange(body);
-      setConfirming(false);
-      setTyped("");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update remote control.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  if (machine.remoteControl) {
-    return (
-      <div className="rc-cell">
-        <span className="rc-on">Enabled</span>
-        <button type="button" className="rc-off-button" onClick={() => void apply(false)} disabled={busy}>
-          {busy ? "Disabling…" : "Disable"}
-        </button>
-        {error && <p className="rc-error" role="alert">{error}</p>}
-      </div>
-    );
-  }
-
-  if (!confirming) {
-    return (
-      <div className="rc-cell">
-        <span className="muted">Disabled</span>
-        <button type="button" onClick={() => setConfirming(true)}>Enable…</button>
-      </div>
-    );
-  }
-
-  const matches = typed.trim().toLowerCase() === machine.hostname.toLowerCase();
-  return (
-    <form className="rc-confirm" onSubmit={event => { event.preventDefault(); if (matches) void apply(true); }}>
-      <label htmlFor={`rc-${machine.id}`}>
-        Allows commands, file transfer and screen control on this machine. Type <strong>{machine.hostname}</strong> to confirm.
-      </label>
-      <div>
-        <input id={`rc-${machine.id}`} value={typed} onChange={event => setTyped(event.target.value)} autoComplete="off" spellCheck={false} autoFocus />
-        <button type="submit" className="rc-enable" disabled={busy || !matches}>{busy ? "Enabling…" : "Enable"}</button>
-        <button type="button" onClick={() => { setConfirming(false); setTyped(""); setError(null); }}>Cancel</button>
-      </div>
-      {error && <p className="rc-error" role="alert">{error}</p>}
-    </form>
-  );
-}
-
 function Machines() {
   const [form, setForm] = useState(EMPTY);
   const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
   const [saving, setSaving] = useState(false);
   const [owners, setOwners] = useState<Owner[]>([]);
-  const [machines, setMachines] = useState<Machine[] | null>(null);
-
-  function loadMachines() {
-    apiFetch("/api/v1/machines")
-      .then(response => (response.ok ? response.json() : []))
-      .then(setMachines)
-      .catch(() => setMachines([]));
-  }
-
-  useEffect(loadMachines, []);
-
   useEffect(() => {
     apiFetch("/api/v1/users")
       .then(response => (response.ok ? response.json() : []))
@@ -122,7 +45,6 @@ function Machines() {
       const body = await response.json().catch(() => null);
       if (!response.ok) throw new Error(body?.message ?? "Failed to add machine.");
       setForm(EMPTY);
-      loadMachines();
       setMessage({ text: `Machine #${body.id} added. Set MachineId to ${body.id} in the worker configuration.`, error: false });
     } catch (error) {
       setMessage({ text: error instanceof Error ? error.message : "Failed to add machine.", error: true });
@@ -200,36 +122,6 @@ function Machines() {
         </div>
       </form>
 
-      <section className="machines-list" aria-label="Registered machines">
-        <h2>Registered machines</h2>
-        {machines === null ? (
-          <div className="skeleton ticket-skeleton" />
-        ) : machines.length === 0 ? (
-          <p className="ticket-empty">No machines registered yet.</p>
-        ) : (
-          <table className="machines-table">
-            <thead>
-              <tr><th>Host</th><th>Department</th><th>IP address</th><th>Owner</th><th>Remote control</th></tr>
-            </thead>
-            <tbody>
-              {machines.map(machine => (
-                <tr key={machine.id}>
-                  <td><strong>{machine.hostname}</strong><span>#{machine.id} · {machine.type}</span></td>
-                  <td>{machine.department}</td>
-                  <td>{machine.ipAddress}</td>
-                  <td>{machine.ownerFullName}</td>
-                  <td>
-                    <RemoteControl
-                      machine={machine}
-                      onChange={updated => setMachines(current => current?.map(m => (m.id === updated.id ? updated : m)) ?? null)}
-                    />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </section>
     </div>
   );
 }
