@@ -308,7 +308,7 @@ function RemoteSession() {
             <p className="rs-sub">
               #{machine.id} · {machine.ipAddress} · {machine.department} · {machine.ownerFullName}
               <span className={`rs-state ${online ? "is-live" : ""}`}>
-                {agent === null ? "Connecting" : !online ? "Worker offline" : agent.desktop ? "Worker connected · controlling desktop" : `Worker connected${agent.os === "linux" ? " · Linux" : ""}`}
+                {agent === null ? "Connecting" : !online ? "Worker offline" : agent.desktop ? "Controlling desktop" : agent.os === "linux" ? "Linux worker connected" : "Worker connected"}
               </span>
             </p>
           )}

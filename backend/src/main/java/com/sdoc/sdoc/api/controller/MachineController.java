@@ -1,5 +1,7 @@
 package com.sdoc.sdoc.api.controller;
 
+import org.springframework.http.ResponseEntity;
+
 import com.sdoc.sdoc.api.dto.RemoteControlRequestDto;
 import org.springframework.web.bind.annotation.PatchMapping;
 
@@ -41,6 +43,13 @@ public class MachineController {
     @PutMapping("/{id}")
     public MachineDto update(@PathVariable long id, @RequestBody CreateMachineRequestDto body) {
         return machineService.update(id, body);
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable long id, @RequestParam(defaultValue = "") String confirmHostname, Authentication auth) {
+        machineService.delete(id, confirmHostname, SecurityUtils.getUserId(auth));
+        return ResponseEntity.noContent().build();
     }
 
     @PreAuthorize("hasRole('ADMIN')")

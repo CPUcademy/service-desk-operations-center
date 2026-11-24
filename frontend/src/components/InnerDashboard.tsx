@@ -138,13 +138,62 @@ function EditMachine({ machine, onSaved, onClose }: { machine: Machine; onSaved:
     );
 }
 
-function RowMenu({ machine, onChange }: { machine: Machine; onChange: (machine: Machine) => void }) {
+function RemoveMachine({ machine, onRemoved, onClose }: { machine: Machine; onRemoved: () => void; onClose: () => void }) {
+    const dialog = useRef<HTMLDialogElement>(null);
+    const [typed, setTyped] = useState("");
+    const [busy, setBusy] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const matches = typed.trim().toLowerCase() === machine.hostname.toLowerCase();
+
+    useEffect(() => { dialog.current?.showModal(); }, []);
+
+    async function submit(event: FormEvent<HTMLFormElement>) {
+        event.preventDefault();
+        if (!matches) return;
+        setBusy(true);
+        setError(null);
+        try {
+            const response = await apiFetch(`/api/v1/machines/${machine.id}?confirmHostname=${encodeURIComponent(typed.trim())}`, { method: "DELETE" });
+            if (!response.ok) {
+                const body = await response.json().catch(() => null);
+                throw new Error(body?.message ?? "Failed to remove the machine.");
+            }
+            dialog.current?.close();
+            onRemoved();
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Failed to remove the machine.");
+        } finally {
+            setBusy(false);
+        }
+    }
+
+    return (
+        <dialog ref={dialog} className="rc-dialog" onClose={onClose}>
+            <form onSubmit={submit}>
+                <h2>Remove machine #{machine.id}</h2>
+                <p>
+                    This permanently deletes the machine and all its tickets. Its worker is disconnected and can't reconnect.
+                    Type <strong>{machine.hostname}</strong> to confirm.
+                </p>
+                <input value={typed} onChange={event => setTyped(event.target.value)} aria-label="Hostname" autoComplete="off" spellCheck={false} />
+                {error && <p className="rc-error" role="alert">{error}</p>}
+                <div className="rc-dialog-actions">
+                    <button type="button" onClick={() => dialog.current?.close()}>Cancel</button>
+                    <button type="submit" className="is-danger" disabled={busy || !matches}>{busy ? "Removing…" : "Remove"}</button>
+                </div>
+            </form>
+        </dialog>
+    );
+}
+
+function RowMenu({ machine, onChange, onRemoved }: { machine: Machine; onChange: (machine: Machine) => void; onRemoved: () => void }) {
     const [open, setOpen] = useState(false);
     const [typed, setTyped] = useState("");
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [confirming, setConfirming] = useState(false);
     const [editing, setEditing] = useState(false);
+    const [removing, setRemoving] = useState(false);
     const dialog = useRef<HTMLDialogElement>(null);
     const matches = typed.trim().toLowerCase() === machine.hostname.toLowerCase();
 
@@ -193,6 +242,9 @@ function RowMenu({ machine, onChange }: { machine: Machine; onChange: (machine: 
                     <button type="button" role="menuitem" onClick={() => { setOpen(false); setEditing(true); }}>
                         Edit machine
                     </button>
+                    <button type="button" role="menuitem" className="is-danger" onClick={() => { setOpen(false); setRemoving(true); }}>
+                        Remove machine
+                    </button>
                     {machine.remoteControl || machine.agentRemoteControl ? (
                         <button type="button" role="menuitem" className={machine.remoteControl ? "" : "is-danger"} onClick={choose}>
                             {machine.remoteControl ? "Disable remote control" : "Enable remote control"}
@@ -212,6 +264,7 @@ function RowMenu({ machine, onChange }: { machine: Machine; onChange: (machine: 
             )}
             {error && !confirming && <span className="row-menu-error" role="alert">{error}</span>}
             {editing && <EditMachine machine={machine} onSaved={onChange} onClose={() => setEditing(false)} />}
+            {removing && <RemoveMachine machine={machine} onRemoved={onRemoved} onClose={() => setRemoving(false)} />}
 
             <dialog ref={dialog} className="rc-dialog" onClose={() => { setConfirming(false); setTyped(""); }}>
                 <form onSubmit={submit}>
@@ -422,7 +475,11 @@ function InnerDashboard() {
                                         </td>
                                         <td className="session-cell">
                                             <SessionLink machine={machine} />
-                                            <RowMenu machine={machine} onChange={updated => setMachines(current => current.map(m => (m.id === updated.id ? updated : m)))} />
+                                            <RowMenu
+                                                machine={machine}
+                                                onChange={updated => setMachines(current => current.map(m => (m.id === updated.id ? updated : m)))}
+                                                onRemoved={() => setMachines(current => current.filter(m => m.id !== machine.id))}
+                                            />
                                         </td>
                                     </tr>
                                 );

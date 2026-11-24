@@ -11,6 +11,7 @@ import com.sdoc.sdoc.api.dto.MachineDto;
 import com.sdoc.sdoc.api.dto.MachineMetricsDto;
 import com.sdoc.sdoc.persistance.entity.Machine;
 import com.sdoc.sdoc.persistance.repository.MachineRepository;
+import com.sdoc.sdoc.persistance.repository.TicketRepository;
 import com.sdoc.sdoc.persistance.repository.UserRepository;
 
 import org.springframework.transaction.annotation.Transactional;
@@ -37,6 +38,7 @@ public class MachineService {
     private final MachineRepository machineRepository;
     private final UserRepository userRepository;
     private final RemoteRelayHandler relay;
+    private final TicketRepository ticketRepository;
     private final Cache<Long, MachineMetricsDto> metrics = Caffeine.newBuilder()
             .expireAfterWrite(METRICS_TTL).maximumSize(10_000).build();
     
@@ -110,6 +112,19 @@ public class MachineService {
         log.warn("Admin {} {} remote control for machine {} ({})", adminId, dto.enabled() ? "ENABLED" : "disabled", machineId, machine.getHostname());
         relay.applyRemoteControl(machineId, dto.enabled());
         return convertToDto(machine);
+    }
+
+    @Transactional
+    public void delete(long machineId, String confirmHostname, long adminId) {
+        Machine machine = machineRepository.findById(machineId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Machine not found"));
+        if (!machine.getHostname().equalsIgnoreCase(String.valueOf(confirmHostname).trim()))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Type the machine's hostname to confirm");
+        long tickets = ticketRepository.deleteByMachineId(machineId);
+        machineRepository.delete(machine);
+        metrics.invalidate(machineId);
+        relay.forgetMachine(machineId);
+        log.warn("Admin {} removed machine {} ({}) and {} tickets", adminId, machineId, machine.getHostname(), tickets);
     }
 
     @Transactional(readOnly = true)

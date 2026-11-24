@@ -94,6 +94,10 @@ public class RemoteRelayHandler extends AbstractWebSocketHandler {
                     session.close(CloseStatus.POLICY_VIOLATION);
                     return;
                 }
+                if (!machineRepository.existsById(machineId)) {
+                    session.close(CloseStatus.POLICY_VIOLATION);
+                    return;
+                }
                 session.getAttributes().put(ROLE, "service");
                 closeQuietly(channel.service);
                 channel.agentAllows = false;
@@ -191,6 +195,14 @@ public class RemoteRelayHandler extends AbstractWebSocketHandler {
             }
             default -> { }
         }
+    }
+
+    public void forgetMachine(long machineId) {
+        Channel channel = channels.remove(machineId);
+        if (channel == null) return;
+        closeQuietly(channel.service);
+        closeQuietly(channel.desktop);
+        channel.viewers.forEach(RemoteRelayHandler::closeQuietly);
     }
 
     public void applyRemoteControl(long machineId, boolean enabled) {

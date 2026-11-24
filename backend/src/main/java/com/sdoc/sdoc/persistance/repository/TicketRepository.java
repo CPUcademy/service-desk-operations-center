@@ -10,6 +10,7 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface TicketRepository extends JpaRepository<Ticket, Long> {
     List<Ticket> findByUserId(Long userId);
+    long deleteByMachineId(Long machineId);
 
     long countByIsFixedTrue();
     long countByIsFixedFalse();

@@ -212,8 +212,9 @@ namespace sdoc
             {
                 string script = "$ProgressPreference = 'SilentlyContinue'\n"
                     + (cwd.Length > 0 ? $"try {{ Set-Location -LiteralPath '{cwd.Replace("'", "''")}' -ErrorAction Stop }} catch {{ Set-Location \"$env:SystemDrive\\\" }}\n" : "Set-Location \"$env:SystemDrive\\\"\n")
-                    + "& {\n" + command + "\n} 2>&1 | Out-String -Width 160\n"
-                    + $"\"`n{CwdMarker}\" + (Get-Location).ProviderPath";
+                    + "$sdocOut = & {\n" + command + "\n} 2>&1 | ForEach-Object { if ($_ -is [System.Management.Automation.ErrorRecord] -and $_.FullyQualifiedErrorId -like 'NativeCommandError*') { \"$($_.TargetObject)\" } else { $_ } } | Out-String -Width 160\n"
+                    + $"$sdocBytes = [Text.Encoding]::UTF8.GetBytes($sdocOut + \"`n{CwdMarker}\" + (Get-Location).ProviderPath)\n"
+                    + "$sdocStream = [Console]::OpenStandardOutput(); $sdocStream.Write($sdocBytes, 0, $sdocBytes.Length); $sdocStream.Flush()";
                 string shell = (cwd.Length > 0 ? $"cd -- '{cwd.Replace("'", "'\\''")}' 2>/dev/null || cd ~\n" : "cd ~\n")
                     + command + "\nrc=$?\n"
                     + $"printf '\\n{CwdMarker}%s' \"$(pwd)\"\nexit $rc";
@@ -223,6 +224,8 @@ namespace sdoc
                     : new ProcessStartInfo("/bin/sh", ["-c", shell]);
                 psi.RedirectStandardOutput = true;
                 psi.RedirectStandardError = true;
+                psi.StandardOutputEncoding = Encoding.UTF8;
+                psi.StandardErrorEncoding = Encoding.UTF8;
                 psi.UseShellExecute = false;
                 psi.CreateNoWindow = true;
                 using Process process = Process.Start(psi)!;
