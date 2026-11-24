@@ -101,7 +101,7 @@ function NetConsole({ machines }: { machines: Machine[] }) {
   const end = useRef<HTMLDivElement>(null);
 
   useEffect(() => () => window.clearInterval(timer.current), []);
-  useEffect(() => end.current?.scrollIntoView({ block: "nearest" }), [lines]);
+  useEffect(() => { end.current?.scrollIntoView({ block: "nearest" }); }, [lines]);
 
   const print = (...text: string[]) => setLines(current => [...current, ...text]);
 

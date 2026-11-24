@@ -17,13 +17,14 @@ function Meter({ percent }: { percent: number }) {
     );
 }
 
-function SessionLink({ machine }: { machine: Machine }) {
+function SessionLink({ machine, compact = false }: { machine: Machine; compact?: boolean }) {
     const state = getMachineState(machine);
     if (state === "offline") return null;
+    const label = state === "insession" ? "Resume" : "Connect";
     return (
-        <Link className="session-link" to={`/session/${machine.id}`} title={`Remote session to ${machine.hostname}`}>
+        <Link className={`session-link ${compact ? "is-compact" : ""}`} to={`/session/${machine.id}`} title={`${label}: remote session to ${machine.hostname}`}>
             <MonitorPlay size={14} aria-hidden="true" />
-            {state === "insession" ? "Resume" : "Connect"}
+            <span className={compact ? "visually-hidden" : ""}>{label}</span>
         </Link>
     );
 }
@@ -273,7 +274,7 @@ function InnerDashboard() {
                                         <td className="num muted" data-label="Reported">
                                             {metrics ? new Date(metrics.reportedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—"}
                                         </td>
-                                        <td className="session-cell"><SessionLink machine={machine} /></td>
+                                        <td className="session-cell"><SessionLink machine={machine} compact /></td>
                                     </tr>
                                 );
                             })}

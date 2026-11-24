@@ -16,10 +16,12 @@ public class WebSocketConfig implements WebSocketConfigurer {
     public static final String PATH = "/api/v1/signal";
 
     private final SignalingHandler handler;
+    private final RemoteRelayHandler relay;
     private final String[] allowedOrigins;
 
-    public WebSocketConfig(SignalingHandler handler, @Value("${cors.allowed-origins}") String origins) {
+    public WebSocketConfig(SignalingHandler handler, RemoteRelayHandler relay, @Value("${cors.allowed-origins}") String origins) {
         this.handler = handler;
+        this.relay = relay;
         this.allowedOrigins = Arrays.stream(origins.split(","))
                 .map(String::trim).filter(s -> !s.isBlank()).toArray(String[]::new);
     }
@@ -27,12 +29,15 @@ public class WebSocketConfig implements WebSocketConfigurer {
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
         registry.addHandler(handler, PATH).setAllowedOrigins(allowedOrigins);
+        // Agents send no Origin header, which Spring treats as same-origin
+        registry.addHandler(relay, RemoteRelayHandler.AGENT_PATH, RemoteRelayHandler.VIEWER_PATH).setAllowedOrigins(allowedOrigins);
     }
 
     @Bean
     public ServletServerContainerFactoryBean webSocketContainer() {
         var container = new ServletServerContainerFactoryBean();
-        container.setMaxTextMessageBufferSize(64 * 1024); // room for SDP offers
+        container.setMaxTextMessageBufferSize(64 * 1024); // room for SDP offers and command output
+        container.setMaxBinaryMessageBufferSize(2 * 1024 * 1024); // desktop JPEG frames
         return container;
     }
 }

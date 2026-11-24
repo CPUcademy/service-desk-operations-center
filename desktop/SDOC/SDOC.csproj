@@ -3,6 +3,7 @@
   <PropertyGroup>
     <TargetFramework>net10.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>dotnet-sdoc-27d8dfe1-6704-43d2-8795-dad4b05cf30c</UserSecretsId>
   </PropertyGroup>

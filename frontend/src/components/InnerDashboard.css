@@ -627,3 +627,46 @@
     flex-wrap: wrap;
   }
 }
+
+.session-link.is-compact {
+  width: 28px;
+  padding: 0;
+  justify-content: center;
+}
+
+.host-table {
+  table-layout: auto;
+}
+
+@container (720px < width <= 1180px) {
+  .host-table th:nth-child(8),
+  .host-table td[data-label="Reported"] {
+    display: none;
+  }
+
+  .meter {
+    width: 36px;
+    margin-right: 8px;
+  }
+}
+
+@container (max-width: 720px) {
+  .session-link.is-compact {
+    width: auto;
+    padding: 0 10px;
+  }
+
+  .session-link.is-compact .visually-hidden {
+    position: static;
+    width: auto;
+    height: auto;
+    clip-path: none;
+  }
+}
+
+.host-table .host-cell span {
+  display: block;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

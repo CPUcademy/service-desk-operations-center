@@ -5,4 +5,5 @@ const fallback = `http://${window.location.hostname}:8002`;
 export const API_URL = (import.meta.env.VITE_API_URL ?? fallback).replace(/\/$/, "");
 
 // http -> ws, https -> wss. An empty API_URL (dev proxy) resolves against the page origin.
-export const SIGNAL_URL = (API_URL || window.location.origin).replace(/^http/, "ws") + "/api/v1/signal";
+export const WS_BASE = (API_URL || window.location.origin).replace(/^http/, "ws");
+export const SIGNAL_URL = WS_BASE + "/api/v1/signal";

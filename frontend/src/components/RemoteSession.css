@@ -523,3 +523,24 @@
     max-height: 240px;
   }
 }
+
+.rs-screen.is-live {
+  aspect-ratio: auto;
+  background: #000;
+  cursor: crosshair;
+}
+
+.rs-screen.is-live:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.rs-screen.is-live img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.rs-terminal pre.err {
+  color: #ff9b9b;
+}
