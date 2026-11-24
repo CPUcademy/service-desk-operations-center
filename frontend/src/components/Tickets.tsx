@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { apiFetch } from "../api";
 import type { Machine } from "../types/Machine";
@@ -31,6 +32,10 @@ async function errorMessage(response: Response, fallback: string) {
 
 function normalize(raw: Ticket & { fixed?: boolean }): Ticket {
   return { ...raw, isFixed: raw.isFixed ?? raw.fixed ?? false };
+}
+
+function formatDate(value: string) {
+  return new Date(value).toLocaleString([], { dateStyle: "short", timeStyle: "short" });
 }
 
 function byUrgency(a: Ticket, b: Ticket) {
@@ -316,6 +321,12 @@ function Tickets() {
                   </span>
 
                   {isAdmin && !ticket.isFixed && (
+                    <Link className="ticket-fix-button ticket-attend" to={`/session/${ticket.machineId}`}>
+                      Attend
+                    </Link>
+                  )}
+
+                  {isAdmin && !ticket.isFixed && (
                     <button
                       type="button"
                       className="ticket-fix-button"
@@ -335,6 +346,8 @@ function Tickets() {
                   {ticket.isFixed && ticket.adminFullName && (
                     <span>Fixed by: <strong>{ticket.adminFullName}</strong></span>
                   )}
+                  {ticket.createdAt && <span>Opened: <strong>{formatDate(ticket.createdAt)}</strong></span>}
+                  {ticket.closedAt && <span>Closed: <strong>{formatDate(ticket.closedAt)}</strong></span>}
                 </div>
               </article>
             ))}

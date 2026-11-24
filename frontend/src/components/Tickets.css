@@ -449,3 +449,13 @@
     gap: 2px;
   }
 }
+
+.ticket-attend {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+.ticket-attend + .ticket-fix-button {
+  margin-left: 0;
+}

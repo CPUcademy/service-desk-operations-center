@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Search } from "lucide-react";
+import { Link } from "react-router-dom";
+import { MonitorPlay, Search } from "lucide-react";
 import { DEPARTMENTS, getMachineState, MACHINE_STATE_LABEL, type Machine, type MachineState } from "../types/Machine";
 import { apiFetch } from "../api";
 import "./InnerDashboard.css";
@@ -16,7 +17,19 @@ function Meter({ percent }: { percent: number }) {
     );
 }
 
+function SessionLink({ machine }: { machine: Machine }) {
+    const state = getMachineState(machine);
+    if (state === "offline") return null;
+    return (
+        <Link className="session-link" to={`/session/${machine.id}`} title={`Remote session to ${machine.hostname}`}>
+            <MonitorPlay size={14} aria-hidden="true" />
+            {state === "insession" ? "Resume" : "Connect"}
+        </Link>
+    );
+}
+
 function InnerDashboard() {
+    const [view, setView] = useState<"table" | "cards">("table");
     const [search, setSearch] = useState("");
     const [department, setDepartment] = useState("");
     const [state, setState] = useState<MachineState | "">("");
@@ -64,7 +77,7 @@ function InnerDashboard() {
 
     const stateCounts = Object.fromEntries(STATES.map(key => [key, 0])) as Record<MachineState, number>;
     machines.forEach(machine => stateCounts[getMachineState(machine)]++);
-    const onlineCount = stateCounts.online + stateCounts.alert;
+    const onlineCount = stateCounts.online + stateCounts.insession + stateCounts.alert;
 
     const reportingMetrics = machines.flatMap(machine =>
         machine.metrics ? [machine.metrics] : []
@@ -83,7 +96,7 @@ function InnerDashboard() {
         && (!state || getMachineState(machine) === state)
         && (!query || (query.startsWith("#")
             ? Number(query.slice(1)) === machine.id
-            : [String(machine.id), machine.hostname, machine.ipAddress]
+            : [String(machine.id), machine.hostname, machine.ipAddress, machine.ownerFullName ?? ""]
                 .some(value => value.toLowerCase().includes(query))))
     );
 
@@ -141,7 +154,7 @@ function InnerDashboard() {
                             <Search size={14} aria-hidden="true" />
                             <input
                                 type="search"
-                                placeholder="#ID, hostname or IP"
+                                placeholder="#ID, hostname, IP or user"
                                 aria-label="Search machines"
                                 value={search}
                                 onChange={event => setSearch(event.target.value)}
@@ -156,11 +169,64 @@ function InnerDashboard() {
                             <option value="">All departments</option>
                             {DEPARTMENTS.map(name => <option key={name} value={name}>{name}</option>)}
                         </select>
+                        <div className="view-toggle" role="group" aria-label="View">
+                            {(["table", "cards"] as const).map(key => (
+                                <button key={key} type="button" aria-pressed={view === key} onClick={() => setView(key)}>
+                                    {key === "table" ? "Table" : "Cards"}
+                                </button>
+                            ))}
+                        </div>
                     </div>
                 </div>
 
                 {error && <p className="hosts-error" role="alert">{error}. Showing last known data.</p>}
 
+                {view === "cards" && !loading && (
+                    <div className="host-cards">
+                        {visibleMachines.map(machine => {
+                            const machineState = getMachineState(machine);
+                            const metrics = machine.metrics;
+                            const ramPercent = metrics ? metrics.ramUsed / metrics.ramTotal * 100 : 0;
+                            return (
+                                <article key={machine.id} className={`host-card is-${machineState}`}>
+                                    <header>
+                                        <div className="host-cell">
+                                            <strong>{machine.hostname}</strong>
+                                            <span>#{machine.id} · {machine.type} · {machine.department}</span>
+                                        </div>
+                                        <span className={`status is-${machineState}`}>{MACHINE_STATE_LABEL[machineState]}</span>
+                                    </header>
+                                    <dl>
+                                        <div><dt>IP</dt><dd>{machine.ipAddress}</dd></div>
+                                        <div><dt>User</dt><dd>{machine.ownerFullName ?? "—"}</dd></div>
+                                    </dl>
+                                    <div className="host-card-metrics">
+                                        <div className="metric-cell">
+                                            <span className="stat-label">CPU</span>
+                                            {metrics ? <><Meter percent={metrics.cpuUsage} /><span className={loadTone(metrics.cpuUsage)}>{metrics.cpuUsage.toFixed(0)}%</span></> : <span className="muted">—</span>}
+                                        </div>
+                                        <div className="metric-cell">
+                                            <span className="stat-label">Memory</span>
+                                            {metrics ? <><Meter percent={ramPercent} /><span className={loadTone(ramPercent)}>{ramPercent.toFixed(0)}%</span></> : <span className="muted">—</span>}
+                                        </div>
+                                        <div className="metric-cell">
+                                            <span className="stat-label">Latency</span>
+                                            <span>{metrics?.latencyMs == null ? "—" : `${metrics.latencyMs.toFixed(0)} ms`}</span>
+                                        </div>
+                                    </div>
+                                    <footer>
+                                        <span className="muted">
+                                            {metrics ? `Reported ${new Date(metrics.reportedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : "No telemetry"}
+                                        </span>
+                                        <SessionLink machine={machine} />
+                                    </footer>
+                                </article>
+                            );
+                        })}
+                    </div>
+                )}
+
+                {(view === "table" || loading) && (
                 <table className="host-table">
                     <thead>
                         <tr>
@@ -172,12 +238,13 @@ function InnerDashboard() {
                             <th className="num">Memory</th>
                             <th className="num">Latency</th>
                             <th className="num">Reported</th>
+                            <th><span className="visually-hidden">Session</span></th>
                         </tr>
                     </thead>
                     <tbody>
                         {loading
                             ? [0, 1, 2, 3].map(i => (
-                                <tr key={i}><td colSpan={8}><span className="skeleton row-skeleton" /></td></tr>
+                                <tr key={i}><td colSpan={9}><span className="skeleton row-skeleton" /></td></tr>
                             ))
                             : visibleMachines.map(machine => {
                                 const machineState = getMachineState(machine);
@@ -187,7 +254,7 @@ function InnerDashboard() {
                                     <tr key={machine.id} className={`is-${machineState}`}>
                                         <td className="host-cell">
                                             <strong>{machine.hostname}</strong>
-                                            <span>#{machine.id} · {machine.type}</span>
+                                            <span>#{machine.id} · {machine.type}{machine.ownerFullName ? ` · ${machine.ownerFullName}` : ""}</span>
                                         </td>
                                         <td className="status-cell">
                                             <span className={`status is-${machineState}`}>{MACHINE_STATE_LABEL[machineState]}</span>
@@ -206,11 +273,13 @@ function InnerDashboard() {
                                         <td className="num muted" data-label="Reported">
                                             {metrics ? new Date(metrics.reportedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—"}
                                         </td>
+                                        <td className="session-cell"><SessionLink machine={machine} /></td>
                                     </tr>
                                 );
                             })}
                     </tbody>
                 </table>
+                )}
 
                 {!loading && visibleMachines.length === 0 && (
                     <p className="hosts-empty">

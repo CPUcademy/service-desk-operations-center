@@ -9,6 +9,8 @@ export interface Ticket {
     adminFullName: string | null;
     userFullName: string;
     machineHostname: string;
+    createdAt: string | null;
+    closedAt: string | null;
 }
 
 export const PRIORITIES = [

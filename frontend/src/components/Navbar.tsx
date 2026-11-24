@@ -1,13 +1,14 @@
 
 import { NavLink } from "react-router-dom";
 import { useState } from "react";
-import { LayoutGrid, Menu, MessageSquare, ShieldCheck, Ticket, X } from "lucide-react";
+import { LayoutGrid, Menu, MessageSquare, Network, ShieldCheck, Ticket, X } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
 import "./Navbar.css";
 
 const links = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutGrid, admin: true },
   { to: "/tickets", label: "Tickets", icon: Ticket, admin: false },
+  { to: "/diagnostics", label: "Diagnostics", icon: Network, admin: true },
   { to: "/chat", label: "Chat", icon: MessageSquare, admin: false },
   { to: "/admin", label: "Admin", icon: ShieldCheck, admin: true },
 ];
