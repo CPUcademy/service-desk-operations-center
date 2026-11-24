@@ -155,7 +155,12 @@
 }
 
 .dg-host .dg-select {
-  height: 34px;
+  height: 32px;
   background-color: var(--surface);
   border-color: var(--border-strong);
+}
+
+.dg-head {
+  align-items: center;
+  margin-bottom: 18px;
 }

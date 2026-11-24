@@ -340,7 +340,7 @@ function Diagnostics() {
 
   return (
     <div className="rs-page">
-      <header className="rs-head">
+      <header className="rs-head dg-head">
         <h1>Network diagnostics</h1>
         <label className="dg-host">
           <span>Host</span>

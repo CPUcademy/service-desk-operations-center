@@ -99,11 +99,10 @@ function Users() {
             maxLength={72}
             required
           />
-          <span className="ticket-counter">12–72 characters with an uppercase letter, a lowercase letter, a number and a special character. The user can change it on their Profile page.</span>
         </div>
         <label className="user-admin-check">
           <input type="checkbox" checked={form.isAdmin} onChange={event => setForm({ ...form, isAdmin: event.target.checked })} />
-          Administrator (full access to machines, remote control and users; can't be revoked here)
+          Administrator (full access to machines, remote control and users, can't be revoked here)
         </label>
         <div className="ticket-form-footer">
           {message && (
@@ -139,7 +138,7 @@ function Users() {
       <dialog ref={dialog} className="rc-dialog" onClose={() => setPromoting(null)}>
         <form onSubmit={event => { event.preventDefault(); void promote(); }}>
           <h2>Make {promoting?.fullName} an administrator?</h2>
-          <p>They get full access to all machines, remote control, diagnostics and user management. Admin rights can't be taken away in the app.</p>
+          <p>They get full access to all machines, remote control, diagnostics and user management. Admin rights can't be taken away.</p>
           {promoteError && <p className="rc-error" role="alert">{promoteError}</p>}
           <div className="rc-dialog-actions">
             <button type="button" onClick={() => dialog.current?.close()}>Cancel</button>

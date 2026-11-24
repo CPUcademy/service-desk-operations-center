@@ -250,7 +250,7 @@ namespace sdoc
         private string RestartSelf()
         {
             if (!WindowsServiceHelpers.IsWindowsService())
-                return "Agent is not running as a Windows service; restart it manually.";
+                return "Agent is not running as a Windows service. Restart it manually.";
             // The child outlives the service stop
             Process.Start(new ProcessStartInfo("cmd.exe", $"/c net stop {ServiceName} & net start {ServiceName}") { CreateNoWindow = true, UseShellExecute = false });
             logger.LogWarning("Agent restart requested remotely");
