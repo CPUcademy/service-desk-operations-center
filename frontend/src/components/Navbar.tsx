@@ -1,6 +1,6 @@
 import { NavLink } from "react-router-dom";
 import { useState } from "react";
-import { LayoutGrid, Menu, MessageSquare, Network, Server, Ticket, X } from "lucide-react";
+import { LayoutGrid, Menu, MessageSquare, Network, Server, Ticket, Users, X } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
 import "./Navbar.css";
 
@@ -10,6 +10,7 @@ const links = [
   { to: "/diagnostics", label: "Diagnostics", icon: Network, admin: true },
   { to: "/chat", label: "Chat", icon: MessageSquare, admin: false },
   { to: "/machines", label: "Machines", icon: Server, admin: true },
+  { to: "/users", label: "Users", icon: Users, admin: true },
 ];
 
 function Navbar() {

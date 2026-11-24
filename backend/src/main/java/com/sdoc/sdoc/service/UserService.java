@@ -42,6 +42,14 @@ public class UserService {
                 .toList();
     }
 
+    @Transactional
+    public UserDataDto grantAdmin(long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        user.setIsAdmin(true);
+        return new UserDataDto(user.getId(), user.getFullName(), user.getEmail(), true);
+    }
+
     public UserDataDto getProfile(Long userId) {
         User user = findUser(userId);
         return new UserDataDto(user.getId(), user.getFullName(), user.getEmail(), user.getIsAdmin());

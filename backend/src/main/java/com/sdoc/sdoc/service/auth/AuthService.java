@@ -2,7 +2,6 @@ package com.sdoc.sdoc.service.auth;
 
 import com.sdoc.sdoc.api.dto.AuthResponseDto;
 import com.sdoc.sdoc.api.dto.LoginRequestDto;
-import com.sdoc.sdoc.api.dto.RegisterRequestDto;
 import com.sdoc.sdoc.persistance.entity.RefreshToken;
 import com.sdoc.sdoc.persistance.entity.User;
 import com.sdoc.sdoc.persistance.repository.RefreshTokenRepository;
@@ -63,12 +62,12 @@ public class AuthService {
         dummyHash = passwordEncoder.encode(UUID.randomUUID().toString());
     }
 
-    public AuthResponseDto register(RegisterRequestDto dto) {
-        String email = normalizeEmail(dto.getEmail());
-        String fullName = dto.getFullName() == null ? null : dto.getFullName().trim();
+    public User createUser(String rawFullName, String rawEmail, String password, boolean isAdmin) {
+        String email = normalizeEmail(rawEmail);
+        String fullName = rawFullName == null ? null : rawFullName.trim();
         requireValid(inputValidationService.validateEmail(email));
         requireValid(inputValidationService.validateFullName(fullName));
-        requireValid(inputValidationService.validatePassword(dto.getPassword()));
+        requireValid(inputValidationService.validatePassword(password));
 
         if (userRepository.findByEmail(email).isPresent())
             throw emailTaken();
@@ -76,14 +75,13 @@ public class AuthService {
         User user = new User();
         user.setFullName(fullName);
         user.setEmail(email);
-        user.setPasswordHash(passwordEncoder.encode(dto.getPassword()));
-        user.setIsAdmin(false);
+        user.setPasswordHash(passwordEncoder.encode(password));
+        user.setIsAdmin(isAdmin);
         try {
-            user = userRepository.saveAndFlush(user);
+            return userRepository.saveAndFlush(user);
         } catch (DataIntegrityViolationException ex) {
             throw emailTaken();
         }
-        return generateTokens(user);
     }
 
     public AuthResponseDto login(LoginRequestDto dto, String clientIp) {

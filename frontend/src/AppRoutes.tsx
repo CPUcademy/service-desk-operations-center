@@ -6,6 +6,7 @@ import Dashboard from "./components/Dashboard";
 import Chat from "./components/Chat";
 import Tickets from "./components/Tickets";
 import Machines from "./components/Machines";
+import Users from "./components/Users";
 import Profile from "./components/Profile";
 import RemoteSession from "./components/RemoteSession";
 import Diagnostics from "./components/Diagnostics";
@@ -49,6 +50,7 @@ export default function AppRoutes() {
           <Route element={<ProtectedRoute adminOnly />}>
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/machines" element={<Machines />} />
+            <Route path="/users" element={<Users />} />
             <Route path="/session/:id" element={<RemoteSession />} />
             <Route path="/diagnostics" element={<Diagnostics />} />
           </Route>

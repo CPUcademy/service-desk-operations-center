@@ -23,9 +23,13 @@ function WorkerKey() {
     setShown(true);
     if (key !== null) return;
     apiFetch("/api/v1/agent/key")
-      .then(response => (response.ok ? response.json() : { key: "unavailable" }))
-      .then(body => setKey(body.key))
-      .catch(() => setKey("unavailable"));
+      .then(async response => {
+        if (response.ok) return setKey((await response.json()).key);
+        setKey(response.status === 404 ? "not available: deploy the latest backend"
+          : response.status === 401 || response.status === 403 ? "admins only: sign in again"
+          : `server error ${response.status}`);
+      })
+      .catch(() => setKey("server unreachable"));
   }
 
   return (
