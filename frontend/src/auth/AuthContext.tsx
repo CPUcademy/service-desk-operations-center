@@ -57,7 +57,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     useEffect(() => {
-        setSessionExpiredHandler(() => setUser(null));
+        setSessionExpiredHandler(() => {
+            setUser(null);
+            apiFetch('/api/v1/auth/logout', { method: 'POST', keepalive: true }).catch(() => {});
+        });
         checkAuth();
         return () => setSessionExpiredHandler(null);
     }, []);
