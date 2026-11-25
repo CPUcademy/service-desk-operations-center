@@ -1,0 +1,55 @@
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: sdoc-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: sdoc
+      POSTGRES_USER: sdoc
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ./sdoc.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./db/02-admin.sh:/docker-entrypoint-initdb.d/02-admin.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sdoc -d sdoc"]
+      interval: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: sdoc-backend
+    restart: unless-stopped
+    mem_limit: 1024m
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SDOC_DB_URL: jdbc:postgresql://db:5432/sdoc
+      SDOC_DB_USERNAME: sdoc
+      SDOC_DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET_SDOC: ${JWT_SECRET_SDOC}
+      WORKER_API_KEY: ${WORKER_API_KEY}
+      HTTPS_ONLY: "false"
+      AUTH_COOKIE_SAME_SITE: Lax
+      SERVER_TOMCAT_REMOTEIP_REMOTE_IP_HEADER: x-forwarded-for
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  frontend:
+    build: ./frontend
+    container_name: sdoc-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "${HTTP_PORT:-80}:80"
+
+volumes:
+  db-data:

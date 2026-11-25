@@ -2,3 +2,4 @@
 desktop/**/bin/
 desktop/**/obj/
 publish/
+.env
