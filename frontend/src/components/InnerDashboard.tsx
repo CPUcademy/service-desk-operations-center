@@ -242,9 +242,6 @@ function RowMenu({ machine, onChange, onRemoved }: { machine: Machine; onChange:
                     <button type="button" role="menuitem" onClick={() => { setOpen(false); setEditing(true); }}>
                         Edit machine
                     </button>
-                    <button type="button" role="menuitem" className="is-danger" onClick={() => { setOpen(false); setRemoving(true); }}>
-                        Remove machine
-                    </button>
                     {machine.remoteControl || machine.agentRemoteControl ? (
                         <button type="button" role="menuitem" className={machine.remoteControl ? "" : "is-danger"} onClick={choose}>
                             {machine.remoteControl ? "Disable remote control" : "Enable remote control"}
@@ -260,6 +257,9 @@ function RowMenu({ machine, onChange, onRemoved }: { machine: Machine; onChange:
                                         : "This worker doesn't support remote control. Reinstall it with the latest version."}
                         </span>
                     )}
+                    <button type="button" role="menuitem" className="is-danger" onClick={() => { setOpen(false); setRemoving(true); }}>
+                        Remove machine
+                    </button>
                 </div>
             )}
             {error && !confirming && <span className="row-menu-error" role="alert">{error}</span>}
