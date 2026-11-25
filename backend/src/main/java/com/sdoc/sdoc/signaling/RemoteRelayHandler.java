@@ -205,6 +205,12 @@ public class RemoteRelayHandler extends AbstractWebSocketHandler {
         channel.viewers.forEach(RemoteRelayHandler::closeQuietly);
     }
 
+    public void closeUser(long userId) {
+        channels.values().forEach(channel -> channel.viewers.stream()
+                .filter(viewer -> Long.valueOf(userId).equals(viewer.getAttributes().get(USER)))
+                .forEach(RemoteRelayHandler::closeQuietly));
+    }
+
     public void applyRemoteControl(long machineId, boolean enabled) {
         Channel channel = channels.computeIfAbsent(machineId, id -> new Channel());
         channel.remoteControl = enabled;

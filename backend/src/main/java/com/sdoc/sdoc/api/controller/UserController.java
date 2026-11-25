@@ -52,6 +52,13 @@ public class UserController {
         return userService.grantAdmin(id);
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable long id, @RequestParam(defaultValue = "") String confirmEmail, Authentication authentication) {
+        userService.delete(id, confirmEmail, SecurityUtils.getUserId(authentication));
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/contacts")
     public List<ContactDto> contacts(Authentication authentication) {
         return userService.getContacts(SecurityUtils.getUserId(authentication), SecurityUtils.isAdmin(authentication));

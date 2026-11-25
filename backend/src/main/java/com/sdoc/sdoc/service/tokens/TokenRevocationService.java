@@ -3,18 +3,24 @@ package com.sdoc.sdoc.service.tokens;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.sdoc.sdoc.service.auth.JwtService;
+import com.sdoc.sdoc.signaling.RemoteRelayHandler;
+import com.sdoc.sdoc.signaling.SignalingHandler;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 
 @Service
+@RequiredArgsConstructor
 public class TokenRevocationService {
     private static final long MAX_ENTRIES = 100_000;
     private final Cache<String, Boolean> revokedTokens = Caffeine.newBuilder()
             .expireAfterWrite(JwtService.ACCESS_TOKEN_TTL).maximumSize(MAX_ENTRIES).build();
     private final Cache<Long, Instant> revokedUsers = Caffeine.newBuilder()
             .expireAfterWrite(JwtService.ACCESS_TOKEN_TTL).maximumSize(MAX_ENTRIES).build();
+    private final RemoteRelayHandler relay;
+    private final SignalingHandler signaling;
 
     public void revokeAccessToken(String token) {
         revokedTokens.put(JwtService.sha256(token), true);
@@ -22,6 +28,8 @@ public class TokenRevocationService {
 
     public void revokeUser(Long userId) {
         revokedUsers.put(userId, Instant.now().truncatedTo(ChronoUnit.SECONDS));
+        relay.closeUser(userId);
+        signaling.closeUser(userId);
     }
 
     public boolean isUserRevoked(Long userId, Instant issuedAt) {

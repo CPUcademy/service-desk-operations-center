@@ -21,6 +21,12 @@ function Users() {
   const [promoting, setPromoting] = useState<UserRow | null>(null);
   const [promoteError, setPromoteError] = useState<string | null>(null);
   const dialog = useRef<HTMLDialogElement>(null);
+  const [removing, setRemoving] = useState<UserRow | null>(null);
+  const [typedEmail, setTypedEmail] = useState("");
+  const [removeError, setRemoveError] = useState<string | null>(null);
+  const [removeBusy, setRemoveBusy] = useState(false);
+  const removeDialog = useRef<HTMLDialogElement>(null);
+  const emailMatches = !!removing && typedEmail.trim().toLowerCase() === removing.email.toLowerCase();
 
   useEffect(() => {
     apiFetch("/api/v1/users")
@@ -68,6 +74,29 @@ function Users() {
       dialog.current?.close();
     } catch (err) {
       setPromoteError(err instanceof Error ? err.message : "Failed to grant admin rights.");
+    }
+  }
+
+  function askRemove(row: UserRow) {
+    setRemoving(row);
+    setTypedEmail("");
+    setRemoveError(null);
+    removeDialog.current?.showModal();
+  }
+
+  async function remove() {
+    if (!removing || !emailMatches) return;
+    setRemoveBusy(true);
+    setRemoveError(null);
+    try {
+      const response = await apiFetch(`/api/v1/users/${removing.id}?confirmEmail=${encodeURIComponent(typedEmail.trim())}`, { method: "DELETE" });
+      if (!response.ok) throw new Error(await errorMessage(response, "Failed to remove the user."));
+      setUsers(current => current?.filter(row => row.id !== removing.id) ?? null);
+      removeDialog.current?.close();
+    } catch (err) {
+      setRemoveError(err instanceof Error ? err.message : "Failed to remove the user.");
+    } finally {
+      setRemoveBusy(false);
     }
   }
 
@@ -127,6 +156,7 @@ function Users() {
                   <td className={row.isAdmin ? "users-admin" : ""}>{row.isAdmin ? "Administrator" : "User"}</td>
                   <td className="users-action">
                     {!row.isAdmin && <button type="button" className="ticket-fix-button" onClick={() => askPromote(row)}>Make admin</button>}
+                    {row.id !== user?.id && <button type="button" className="ticket-fix-button" onClick={() => askRemove(row)}>Remove</button>}
                   </td>
                 </tr>
               ))}
@@ -143,6 +173,22 @@ function Users() {
           <div className="rc-dialog-actions">
             <button type="button" onClick={() => dialog.current?.close()}>Cancel</button>
             <button type="submit" className="is-danger">Make admin</button>
+          </div>
+        </form>
+      </dialog>
+
+      <dialog ref={removeDialog} className="rc-dialog" onClose={() => setRemoving(null)}>
+        <form onSubmit={event => { event.preventDefault(); void remove(); }}>
+          <h2>Remove {removing?.fullName}?</h2>
+          <p>
+            This permanently deletes the account and their tickets, and immediately ends their open sessions.
+            Users who own machines can't be removed until those machines are removed. Type <strong>{removing?.email}</strong> to confirm.
+          </p>
+          <input value={typedEmail} onChange={event => setTypedEmail(event.target.value)} aria-label="Email" autoComplete="off" spellCheck={false} />
+          {removeError && <p className="rc-error" role="alert">{removeError}</p>}
+          <div className="rc-dialog-actions">
+            <button type="button" onClick={() => removeDialog.current?.close()}>Cancel</button>
+            <button type="submit" className="is-danger" disabled={removeBusy || !emailMatches}>{removeBusy ? "Removing…" : "Remove"}</button>
           </div>
         </form>
       </dialog>

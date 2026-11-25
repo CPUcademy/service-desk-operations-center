@@ -4,10 +4,14 @@ import com.sdoc.sdoc.api.dto.ContactDto;
 import com.sdoc.sdoc.api.dto.UserDataDto;
 import com.sdoc.sdoc.signaling.SignalingHandler;
 import com.sdoc.sdoc.persistance.entity.User;
+import com.sdoc.sdoc.persistance.repository.MachineRepository;
 import com.sdoc.sdoc.persistance.repository.RefreshTokenRepository;
+import com.sdoc.sdoc.persistance.repository.TicketRepository;
 import com.sdoc.sdoc.persistance.repository.UserRepository;
+import com.sdoc.sdoc.service.tokens.TokenRevocationService;
 import com.sdoc.sdoc.service.validation.InputValidationService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -17,6 +21,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserService {
@@ -28,6 +33,9 @@ public class UserService {
     private final RateLimitService rateLimitService;
     private final InputValidationService inputValidationService;
     private final SignalingHandler signalingHandler;
+    private final MachineRepository machineRepository;
+    private final TicketRepository ticketRepository;
+    private final TokenRevocationService tokenRevocationService;
 
     public List<UserDataDto> getAll() {
         return userRepository.findAll(org.springframework.data.domain.Sort.by("fullName")).stream()
@@ -48,6 +56,25 @@ public class UserService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
         user.setIsAdmin(true);
         return new UserDataDto(user.getId(), user.getFullName(), user.getEmail(), true);
+    }
+
+    @Transactional
+    public void delete(long userId, String confirmEmail, long adminId) {
+        if (userId == adminId)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "You can't remove your own account");
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        if (!user.getEmail().equalsIgnoreCase(String.valueOf(confirmEmail).trim()))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Type the user's email to confirm");
+        int machines = machineRepository.findByOwnerId(userId).size();
+        if (machines > 0)
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "This user owns " + machines + " machine(s). Remove them first.");
+        long tickets = ticketRepository.deleteByUserId(userId);
+        ticketRepository.clearAdmin(userId);
+        refreshTokenRepository.deleteByUserId(userId);
+        userRepository.delete(user);
+        tokenRevocationService.revokeUser(userId);
+        log.warn("Admin {} removed user {} ({}) and {} tickets", adminId, userId, user.getEmail(), tickets);
     }
 
     public UserDataDto getProfile(Long userId) {

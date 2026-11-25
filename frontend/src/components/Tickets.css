@@ -603,6 +603,10 @@
   text-align: right;
 }
 
+.users-action button + button {
+  margin-left: 8px;
+}
+
 @media (max-width: 720px) {
   .users-table th:nth-child(2),
   .users-table td:nth-child(2) {

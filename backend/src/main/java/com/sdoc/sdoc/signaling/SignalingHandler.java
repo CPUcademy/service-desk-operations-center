@@ -34,6 +34,15 @@ public class SignalingHandler extends TextWebSocketHandler {
         return session != null && session.isOpen();
     }
 
+    public void closeUser(long userId) {
+        var session = sessions.get(userId);
+        if (session == null) return;
+        try {
+            session.close(CloseStatus.NORMAL);
+        } catch (IOException ignored) {
+        }
+    }
+
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws IOException {
         if (!(session.getPrincipal() instanceof Authentication auth) || !(auth.getPrincipal() instanceof JwtClaim claim)) {

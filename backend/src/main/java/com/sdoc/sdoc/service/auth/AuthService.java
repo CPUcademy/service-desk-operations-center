@@ -127,8 +127,10 @@ public class AuthService {
             User owner = jwtService.findRefreshTokenOwner(refreshToken);
             if (owner != null) userId = owner.getId();
         }
-        if (userId != null)
+        if (userId != null) {
             refreshTokenRepository.deleteByUserId(userId);
+            tokenRevocationService.revokeUser(userId);
+        }
     }
 
     public AuthResponseDto generateTokens(User user) {
