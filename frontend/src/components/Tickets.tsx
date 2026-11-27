@@ -262,6 +262,7 @@ function Tickets() {
   }, [isAdmin]);
 
   async function markFixed(id: number) {
+    if (!window.confirm("Mark this ticket as fixed?")) return;
     setClosing(id);
     try {
       const response = await apiFetch(`/api/v1/tickets/fixed/${id}`, { method: "PATCH" });

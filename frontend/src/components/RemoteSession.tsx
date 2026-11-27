@@ -112,6 +112,7 @@ function RemoteSession() {
       setRunning(false);
     };
     return () => {
+      if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type: "desktop-stop" }));
       socket.close();
       if (frameUrl) URL.revokeObjectURL(frameUrl);
     };
