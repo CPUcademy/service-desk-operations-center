@@ -35,7 +35,7 @@ public class RemoteRelayHandler extends AbstractWebSocketHandler {
 
     private static final Set<String> SERVICE_TYPES = Set.of("exec", "restart-agent", "cad", "desktop-start", "file-start");
     private static final Set<String> CONTROL_TYPES = Set.of("exec", "cad", "desktop-start", "file-start", "input");
-    private static final Set<String> DESKTOP_TYPES = Set.of("input", "desktop-stop");
+    private static final Set<String> DESKTOP_TYPES = Set.of("input");
     private static final String ROLE = "role", MACHINE = "machine", USER = "user";
     private static final int MAX_COMMAND = 2000;
 
@@ -165,6 +165,8 @@ public class RemoteRelayHandler extends AbstractWebSocketHandler {
                     log.info("Admin {} -> machine {}: {} {}{}", session.getAttributes().get(USER), machineId, type,
                             node.path("command").asString(""), node.path("path").asString(""));
                     send(channel.service, text);
+                } else if (type.equals("desktop-stop")) {
+                    stopDesktop(channel);
                 } else if (DESKTOP_TYPES.contains(type)) {
                     send(channel.desktop, text);
                 }
@@ -191,7 +193,7 @@ public class RemoteRelayHandler extends AbstractWebSocketHandler {
             }
             case "viewer" -> {
                 channel.viewers.removeIf(viewer -> isSame(viewer, session));
-                if (channel.viewers.isEmpty()) send(channel.desktop, new TextMessage("{\"type\":\"desktop-stop\"}"));
+                if (channel.viewers.isEmpty()) stopDesktop(channel);
             }
             default -> { }
         }
@@ -219,6 +221,15 @@ public class RemoteRelayHandler extends AbstractWebSocketHandler {
             channel.desktopToken = null;
             closeQuietly(channel.desktop);
         }
+        broadcastStatus(channel);
+    }
+
+    private void stopDesktop(Channel channel) {
+        WebSocketSession desktop = channel.desktop;
+        if (desktop == null) return;
+        channel.desktop = null;
+        send(desktop, new TextMessage("{\"type\":\"desktop-stop\"}"));
+        closeQuietly(desktop);
         broadcastStatus(channel);
     }
 
