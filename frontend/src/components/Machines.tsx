@@ -6,8 +6,8 @@ import "./Tickets.css";
 
 const API_BASE = API_URL || window.location.origin;
 const DEFENDER_COMMAND = `Set-ItemProperty -Path "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\CI\\Policy" -Name VerifiedAndReputablePolicyState -Value 0 -Type DWord; CiTool.exe -r`;
-const INSTALL_COMMAND = `powershell -NoProfile -ExecutionPolicy Bypass -Command "irm ${API_BASE}/api/v1/worker/install.ps1 | iex"`;
-const LINUX_INSTALL_COMMAND = `sudo bash -c "$(curl -fsSL ${API_BASE}/api/v1/worker/install.sh)"`;
+const INSTALL_COMMAND = `powershell -NoProfile -ExecutionPolicy Bypass -Command "irm {IP}/api/v1/worker/install.ps1 | iex"`;
+const LINUX_INSTALL_COMMAND = `sudo bash -c "$(curl -fsSL {IP}/api/v1/worker/install.sh)"`;
 
 const EMPTY = { hostname: "", ipAddress: "", type: MACHINE_TYPES[0], department: DEPARTMENTS[0], ownerId: "" };
 
