@@ -131,7 +131,7 @@ function Users() {
         </div>
         <label className="user-admin-check">
           <input type="checkbox" checked={form.isAdmin} onChange={event => setForm({ ...form, isAdmin: event.target.checked })} />
-          Administrator (full access to machines, remote control and users, can't be revoked here)
+          Administrator (full access to everything that cannot be revoked)
         </label>
         <div className="ticket-form-footer">
           {message && (
